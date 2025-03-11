@@ -1,16 +1,12 @@
 import NextAuth from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
 
-console.log("DISCORD_CLIENT_ID:", process.env.DISCORD_CLIENT_ID);
-console.log("DISCORD_CLIENT_SECRET:", process.env.DISCORD_CLIENT_SECRET);
-console.log("NEXTAUTH_SECRET:", process.env.NEXTAUTH_SECRET);
-
-// Konfiguracja NextAuth
 export const authOptions = {
   providers: [
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID,
       clientSecret: process.env.DISCORD_CLIENT_SECRET,
+      authorization: { params: { scope: "identify guilds" } }, // Dodaj scope
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
@@ -25,6 +21,18 @@ export const authOptions = {
       session.accessToken = token.accessToken;
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      else if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    },
+  },
+  pages: {
+    signIn: '/auth/signin',
+    signOut: '/auth/signout',
+    error: '/auth/error',
+    verifyRequest: '/auth/verify-request',
+    newUser: null,
   },
 };
 

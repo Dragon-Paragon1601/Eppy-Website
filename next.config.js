@@ -11,6 +11,9 @@ const nextConfig = {
     DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   },
+  images: {
+    domains: ['cdn.discordapp.com'],  // Dodaj domenę, z której chcesz ładować obrazy
+  },
 };
 
 module.exports = nextConfig;
