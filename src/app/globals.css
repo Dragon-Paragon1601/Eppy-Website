@@ -85,3 +85,15 @@
 .overlay {
   background: rgba(0, 0, 0, 0.75);
 }
+
+#parallax-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-image: url('/path-to-your-galaxy-image.jpg'); /* Zmień na swoją grafikę */
+  background-size: cover;
+  background-position: center;
+  z-index: -1;
+}
