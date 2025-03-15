@@ -65,7 +65,7 @@ export default function Navbar() {
         </Button>
       </div>
       <div className="flex-grow"></div>
-      <div className="flex items-center gap-8 justify-end" style={{ width: '20%' }}>
+      <div className="flex items-center gap-7 justify-end" style={{ width: '20%' }}>
         {session ? (
           <>
             <div className="text-[25px] text-white font-bold">Welcome</div>

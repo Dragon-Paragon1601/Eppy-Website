@@ -27,9 +27,7 @@ export default function RootLayout({ children }) {
             id="parallax-bg"
             className="fixed top-0 left-0 w-screen h-screen bg-cover bg-center z-[-1] overflow-hidden"
             style={{ 
-              backgroundImage: "url('/assets/galaxy.png')",  
-              objectFit: 'cover', 
-              objectPosition: 'center center'  
+              backgroundImage: "url('/assets/galaxy.png')"
             }}
           />
 

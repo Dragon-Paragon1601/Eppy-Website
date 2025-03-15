@@ -12,7 +12,12 @@ const nextConfig = {
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   },
   images: {
-    domains: ['cdn.discordapp.com'],  // Dodaj domenę, z której chcesz ładować obrazy
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cdn.discordapp.com',  // Dodajemy domenę
+      },
+    ],
   },
 };
 

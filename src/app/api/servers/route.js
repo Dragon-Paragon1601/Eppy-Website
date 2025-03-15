@@ -1,10 +1,24 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
-import mysql from "mysql2/promise";
+import mongoose from "mongoose"; // Import mongoose do połączenia z MongoDB
 import logger from "../../../../logger";
 
-export async function GET(req) {
+// Funkcja do łączenia z MongoDB
+const connectToMongoDB = async () => {
+  if (mongoose.connection.readyState >= 1) {
+    return;
+  }
 
+  await mongoose.connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
+};
+
+// Sprawdzanie czy model już istnieje, jeśli nie, to tworzenie go
+const User = mongoose.models.users || mongoose.model('users', new mongoose.Schema({}, { strict: false }));
+
+export async function GET(req) {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -18,31 +32,41 @@ export async function GET(req) {
     return new Response(JSON.stringify({ error: "Brak ID użytkownika" }), { status: 400 });
   }
 
-
-  let connection;
+  await connectToMongoDB(); // Połączenie z MongoDB
 
   try {
-    connection = await mysql.createConnection({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-    });
+    // Pobieranie danych użytkownika z kolekcji EppyBot.users
+    const userServers = await User.find({ user_id: userId });
 
+    // Jeśli nie ma serwerów, zwrócimy pustą odpowiedź
+    if (!userServers || userServers.length === 0) {
+      return new Response(
+        JSON.stringify({
+          adminServers: [],
+          noPermissionServers: [],
+        }),
+        { status: 200 }
+      );
+    }
 
-    const [servers] = await connection.execute(
-      "SELECT CAST(id AS CHAR) as id, name, icon, owner_id FROM servers WHERE owner_id = ?",
-      [userId]
+    // Filtrowanie serwerów na podstawie uprawnień
+    const adminServers = userServers.filter(
+      (server) => server.admin_prem === 8
+    );
+    const noPermissionServers = userServers.filter(
+      (server) => server.admin_prem !== 8
     );
 
-
-    return new Response(JSON.stringify(servers), { status: 200 });
+    // Zwrócenie odpowiedzi
+    return new Response(
+      JSON.stringify({
+        adminServers,
+        noPermissionServers
+      }),
+      { status: 200 }
+    );
   } catch (error) {
-    logger.error("❌ Błąd pobierania serwerów:", error);
+    logger.error("❌ Błąd pobierania danych użytkownika:", error);
     return new Response(JSON.stringify({ error: "Database error" }), { status: 500 });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 }
