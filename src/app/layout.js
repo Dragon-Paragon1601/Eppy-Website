@@ -1,4 +1,4 @@
-"use client"; 
+"use client";
 import Navbar from "@/components/Navbar";
 import "./globals.css";
 import { SessionProvider } from "next-auth/react";
@@ -8,7 +8,9 @@ export default function RootLayout({ children }) {
   useEffect(() => {
     const handleScroll = () => {
       const scrollPos = window.scrollY;
-      document.getElementById("parallax-bg").style.transform = `translateY(${scrollPos * 0.2}px)`;
+      document.getElementById("parallax-bg").style.transform = `translateY(${
+        scrollPos * 0.2
+      }px)`;
     };
 
     window.addEventListener("scroll", handleScroll);
@@ -26,8 +28,8 @@ export default function RootLayout({ children }) {
           <div
             id="parallax-bg"
             className="fixed top-0 left-0 w-screen h-screen bg-cover bg-center z-[-1] overflow-hidden"
-            style={{ 
-              backgroundImage: "url('/assets/galaxy.png')"
+            style={{
+              backgroundImage: "url('/assets/galaxy.png')",
             }}
           />
 
@@ -40,7 +42,6 @@ export default function RootLayout({ children }) {
               {children}
             </div>
           </div>
-
         </SessionProvider>
       </body>
     </html>

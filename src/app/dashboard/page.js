@@ -22,16 +22,24 @@ export default function Dashboard() {
           const noPerms = data?.noPermissionServers || [];
           setAdminServers(admin);
           setNoPermissionsServers(noPerms);
-          
+
           // Zorganizuj kanały per server
           const serverChannels = {};
-          data?.channels.forEach(channel => {
+          data?.channels.forEach((channel) => {
             if (!serverChannels[channel.guild_id]) {
               serverChannels[channel.guild_id] = [];
             }
             serverChannels[channel.guild_id].push(channel);
           });
           setChannels(serverChannels); // Przechowaj kanały dla każdej gildii
+
+          // Ustaw domyślnie zapisane kanały
+          const savedChannels = {};
+          data?.setChannels?.forEach((savedChannel) => {
+            savedChannels[savedChannel.guild_id] =
+              savedChannel.queue_channel_id || null; // Zmieniamy na queue_channel_id
+          });
+          setChannelId(savedChannels);
         })
         .catch((err) => {
           console.error("Błąd podczas pobierania serwerów:", err);
@@ -62,7 +70,7 @@ export default function Dashboard() {
       });
       const data = await response.json();
       console.log("Zapisano kanał:", data);
-      
+
       // Po zapisaniu zmiany, zapisz ID kanału w stanie
       setChannelId((prev) => ({ ...prev, [guild_id]: data.channel_id }));
     } catch (error) {
@@ -71,18 +79,27 @@ export default function Dashboard() {
   };
 
   if (!session) {
-    return <p className="text-center text-white">Musisz być zalogowany, aby zobaczyć serwery.</p>;
+    return (
+      <p className="text-center text-white">
+        Musisz być zalogowany, aby zobaczyć serwery.
+      </p>
+    );
   }
 
   return (
     <div className="max-w-3xl mx-auto p-6 mt-16">
       <h1 className="text-2xl font-bold mb-4 text-white">Twoje serwery</h1>
 
-      <h2 className="text-xl font-semibold text-white mb-2">Serwery, na których jesteś administratorem</h2>
+      <h2 className="text-xl font-semibold text-white mb-2">
+        Serwery, na których jesteś administratorem
+      </h2>
       <ul className="space-y-2">
         {adminServers.length > 0 ? (
           adminServers.map((server) => (
-            <li key={server.guild_id} className="p-3 bg-gray-800 text-white rounded-md flex flex-col gap-3">
+            <li
+              key={server.guild_id}
+              className="p-3 bg-gray-800 text-white rounded-md flex flex-col gap-3"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {server.guild_icon ? (
@@ -100,29 +117,57 @@ export default function Dashboard() {
                   )}
                   <span className="ml-3">{server.guild_name}</span>
                 </div>
-                <button onClick={() => toggleExpand(server.guild_id)} className="text-blue-500">
-                  {expanded[server.guild_id] ? <FaChevronDown /> : <FaChevronRight />}
+                <button
+                  onClick={() => toggleExpand(server.guild_id)}
+                  className="text-blue-500"
+                >
+                  {expanded[server.guild_id] ? (
+                    <FaChevronDown />
+                  ) : (
+                    <FaChevronRight />
+                  )}
                 </button>
               </div>
 
               {expanded[server.guild_id] && (
                 <div className="mt-2 p-4 bg-gray-700 rounded-lg">
-                  <h3 className="text-xl font-semibold text-white">Panel Konfiguracji: {server.guild_name}</h3>
+                  <h3 className="text-xl font-semibold text-white">
+                    Panel Konfiguracji: {server.guild_name}
+                  </h3>
 
                   {/* Pole do wyboru kanału */}
                   <div className="mt-4">
-                    <label htmlFor={`channelId-${server.guild_id}`} className="text-white">
+                    <label
+                      htmlFor={`channelId-${server.guild_id}`}
+                      className="text-white"
+                    >
                       Kanał do wysyłania informacji o kolejce:
                     </label>
                     <select
                       id={`channelId-${server.guild_id}`}
                       value={channelId[server.guild_id] || ""}
-                      onChange={(e) => handleChannelIdChange(server.guild_id, e.target.value)}
+                      onChange={(e) =>
+                        handleChannelIdChange(server.guild_id, e.target.value)
+                      }
                       className="mt-1 p-2 w-full bg-gray-800 text-white rounded-md"
                     >
-                      <option value="">Wybierz kanał</option>
+                      {/* Jeśli kanał jest zapisany, pokaż nazwę kanału */}
+                      <option value="">
+                        {channelId[server.guild_id]
+                          ? channels[server.guild_id]?.find(
+                              (channel) =>
+                                channel.channel_id ===
+                                channelId[server.guild_id]
+                            )?.channel_name || "Wybierz kanał"
+                          : "Wybierz kanał"}
+                      </option>
+
+                      {/* Wyświetl pozostałe kanały */}
                       {channels[server.guild_id]?.map((channel) => (
-                        <option key={channel.channel_id} value={channel.channel_id}>
+                        <option
+                          key={channel.channel_id}
+                          value={channel.channel_id}
+                        >
                           {channel.channel_name}
                         </option>
                       ))}
@@ -142,32 +187,9 @@ export default function Dashboard() {
             </li>
           ))
         ) : (
-          <p className="text-white">Brak serwerów administratora do wyświetlenia.</p>
-        )}
-      </ul>
-      <h2 className="text-xl font-semibold text-white mb-2">Serwery, na których nie masz uprawnień</h2>
-      <ul className="space-y-2">
-        {noPermissionsServers.length > 0 ? (
-          noPermissionsServers.map((server) => (
-            <li key={server.guild_id} className="p-3 bg-gray-800 text-gray-500 rounded-md flex items-center gap-3">
-              {server.guild_icon ? (
-                <Image
-                  src={server.guild_icon}
-                  alt={server.guild_name}
-                  width={40}
-                  height={40}
-                  className="rounded-full"
-                />
-              ) : (
-                <div className="w-10 h-10 flex items-center justify-center bg-gray-700 rounded-full">
-                  {server.guild_name[0]}
-                </div>
-              )}
-              <span className="ml-3">{server.guild_name}</span>
-            </li>
-          ))
-        ) : (
-          <p className="text-white">Brak serwerów do wyświetlenia.</p>
+          <p className="text-white">
+            Brak serwerów administratora do wyświetlenia.
+          </p>
         )}
       </ul>
     </div>

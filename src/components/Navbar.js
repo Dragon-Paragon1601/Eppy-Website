@@ -33,14 +33,25 @@ export default function Navbar() {
 
   return (
     <nav className="fixed top-0 w-full flex justify-between items-center p-5 bg-zinc-950 text-cyan-400 shadow-lg z-50">
-      <div className="flex items-center gap-2" style={{ width: '20%' }}>
-        <Image src="/assets/Eppy.png" alt="Eppy Logo" width={40} height={40} className="rounded-full" />
+      <div className="flex items-center gap-2" style={{ width: "20%" }}>
+        <Image
+          src="/assets/Eppy.png"
+          alt="Eppy Logo"
+          width={40}
+          height={40}
+          className="rounded-full"
+        />
         <div className="text-3xl font-bold">Eppy</div>
       </div>
       <div className="flex-grow"></div>
-      <div className="flex items-center gap-4 justify-center" style={{ width: '40%' }}>
+      <div
+        className="flex items-center gap-4 justify-center"
+        style={{ width: "40%" }}
+      >
         <Button
-          className={`text-2xl ${active === "/" ? "bg-cyan-700 scale-105" : "bg-zinc-900"} ${active === "/" ? "border-b-2 border-cyan-400" : ""}`}
+          className={`text-2xl ${
+            active === "/" ? "bg-cyan-700 scale-105" : "bg-zinc-900"
+          } ${active === "/" ? "border-b-2 border-cyan-400" : ""}`}
           variant="ghost"
           asChild
           onClick={() => setActive("/")}
@@ -48,7 +59,9 @@ export default function Navbar() {
           <Link href="/">Home</Link>
         </Button>
         <Button
-          className={`text-2xl ${active === "/about" ? "bg-cyan-700 scale-105" : "bg-zinc-900"} ${active === "/about" ? "border-b-2 border-cyan-400" : ""}`}
+          className={`text-2xl ${
+            active === "/about" ? "bg-cyan-700 scale-105" : "bg-zinc-900"
+          } ${active === "/about" ? "border-b-2 border-cyan-400" : ""}`}
           variant="ghost"
           asChild
           onClick={() => setActive("/about")}
@@ -56,7 +69,9 @@ export default function Navbar() {
           <Link href="/about">About</Link>
         </Button>
         <Button
-          className={`text-2xl ${active === "/dashboard" ? "bg-cyan-700 scale-105" : "bg-zinc-900"} ${active === "/dashboard" ? "border-b-2 border-cyan-400" : ""}`}
+          className={`text-2xl ${
+            active === "/dashboard" ? "bg-cyan-700 scale-105" : "bg-zinc-900"
+          } ${active === "/dashboard" ? "border-b-2 border-cyan-400" : ""}`}
           variant="ghost"
           asChild
           onClick={() => setActive("/dashboard")}
@@ -65,18 +80,31 @@ export default function Navbar() {
         </Button>
       </div>
       <div className="flex-grow"></div>
-      <div className="flex items-center gap-7 justify-end" style={{ width: '20%' }}>
+      <div
+        className="flex items-center gap-7 justify-end"
+        style={{ width: "20%" }}
+      >
         {session ? (
           <>
             <div className="text-[25px] text-white font-bold">Welcome</div>
-            <span className="text-[25px] text-white font-bold">{session.user.name}</span>
-            <Button className="text-2xl bg-zinc-900" variant="outline" onClick={() => signOut()}>
+            <span className="text-[25px] text-white font-bold">
+              {session.user.name}
+            </span>
+            <Button
+              className="text-2xl bg-zinc-900"
+              variant="outline"
+              onClick={() => signOut()}
+            >
               Logout
             </Button>
           </>
         ) : (
           <>
-            <Button className="text-2xl bg-zinc-900" variant="outline" onClick={handleSignIn}>
+            <Button
+              className="text-2xl bg-zinc-900"
+              variant="outline"
+              onClick={handleSignIn}
+            >
               Login with Discord
             </Button>
           </>

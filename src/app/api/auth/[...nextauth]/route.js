@@ -8,9 +8,9 @@ export const authOptions = {
       clientSecret: process.env.DISCORD_CLIENT_SECRET,
       authorization: {
         params: {
-          scope: "identify guilds guilds.members.read" // Upewnij się, że masz odpowiednie uprawnienia
-        }
-      }
+          scope: "identify guilds guilds.members.read", // Upewnij się, że masz odpowiednie uprawnienia
+        },
+      },
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
@@ -29,11 +29,11 @@ export const authOptions = {
     },
   },
   pages: {
-    signIn: '/auth/signin',
-    signOut: '/auth/signout',
-    error: '/auth/error',
-    verifyRequest: '/auth/verify-request',
-    newUser: null,  // Jeżeli nie chcesz przekierować do nowego użytkownika
+    signIn: "/auth/signin",
+    signOut: "/auth/signout",
+    error: "/auth/error",
+    verifyRequest: "/auth/verify-request",
+    newUser: null, // Jeżeli nie chcesz przekierować do nowego użytkownika
   },
 };
 
