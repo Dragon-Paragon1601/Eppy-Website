@@ -1047,7 +1047,7 @@ export default function MusicPage() {
               </div>
             </div>
 
-            <div className="max-h-[32rem] overflow-y-auto pr-1">
+            <div className="max-h-[32rem] overflow-y-auto overflow-x-hidden pr-3 [scrollbar-gutter:stable]">
               {isPlaylistSearchOpen ? (
                 <div className="mb-3 flex items-center gap-2">
                   <div className="relative flex-1">
