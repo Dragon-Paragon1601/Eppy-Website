@@ -520,9 +520,16 @@ export default function MusicPage() {
     }, 180);
   };
 
-  const getControlClassName = (controlKey, sizeClass = "h-8 w-8") => {
+  const getControlClassName = (
+    controlKey,
+    sizeClass = "h-8 w-8",
+    isActive = false,
+  ) => {
     const isFlashing = activeControlFlash === controlKey;
-    return `flex ${sizeClass} items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 transition-all duration-150 hover:bg-zinc-800 active:scale-95 ${isFlashing ? "bg-blue-400/30 border-blue-400/70" : ""}`;
+    const activeClass = isActive
+      ? "border-blue-500/70 bg-blue-500/20 text-blue-300"
+      : "border-zinc-700 bg-zinc-900 text-zinc-100";
+    return `flex ${sizeClass} items-center justify-center rounded-full border transition-all duration-150 hover:bg-zinc-800 active:scale-95 ${activeClass} ${isFlashing ? "bg-blue-400/30 border-blue-400/70" : ""}`;
   };
 
   return (
@@ -871,83 +878,89 @@ export default function MusicPage() {
               )}
             </div>
 
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-zinc-400">Library tracks</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value)}
-                    className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200"
-                  >
-                    <option value="number">Sort: number</option>
-                    <option value="artist">Sort: artist</option>
-                    <option value="title">Sort: alphabetically</option>
-                    <option value="duration">Sort: duration</option>
-                  </select>
+            {browseView !== "home" ? (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-zinc-400">Library tracks</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={sortBy}
+                      onChange={(event) => setSortBy(event.target.value)}
+                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200"
+                    >
+                      <option value="number">Sort: number</option>
+                      <option value="artist">Sort: artist</option>
+                      <option value="title">Sort: alphabetically</option>
+                      <option value="duration">Sort: duration</option>
+                    </select>
 
-                  <select
-                    value={sortDirection}
-                    onChange={(event) => setSortDirection(event.target.value)}
-                    className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200"
-                  >
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
-                  </select>
+                    <select
+                      value={sortDirection}
+                      onChange={(event) => setSortDirection(event.target.value)}
+                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200"
+                    >
+                      <option value="asc">Ascending</option>
+                      <option value="desc">Descending</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="max-h-[21rem] space-y-2 overflow-y-auto pr-1">
+                  {visibleLibraryTracks.map((track) => (
+                    <div
+                      key={track.id}
+                      className="group flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-zinc-100">
+                          #{track.number} • {track.title}
+                        </p>
+                        <p className="truncate text-xs text-zinc-400">
+                          {track.artist}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-zinc-400">
+                          {track.duration}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleAddTrackToSelectedPlaylist(track)
+                          }
+                          disabled={!selectedUserPlaylistId}
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 disabled:opacity-30"
+                          aria-label="Add to selected playlist"
+                          title={
+                            selectedUserPlaylistId
+                              ? "Add to selected playlist"
+                              : "Select your playlist first"
+                          }
+                        >
+                          <Plus size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handlePriorityQueueAdd(track)}
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100"
+                          aria-label={`Add ${track.title} to priority queue`}
+                          title="Add to priority queue"
+                        >
+                          <Play size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {!visibleLibraryTracks.length ? (
+                    <p className="px-1 py-2 text-sm text-zinc-500">
+                      No tracks in this playlist.
+                    </p>
+                  ) : null}
                 </div>
               </div>
-
-              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                {visibleLibraryTracks.map((track) => (
-                  <div
-                    key={track.id}
-                    className="group flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm text-zinc-100">
-                        #{track.number} • {track.title}
-                      </p>
-                      <p className="truncate text-xs text-zinc-400">
-                        {track.artist}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs text-zinc-400">{track.duration}</p>
-                      <button
-                        type="button"
-                        onClick={() => handleAddTrackToSelectedPlaylist(track)}
-                        disabled={!selectedUserPlaylistId}
-                        className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 disabled:opacity-30"
-                        aria-label="Add to selected playlist"
-                        title={
-                          selectedUserPlaylistId
-                            ? "Add to selected playlist"
-                            : "Select your playlist first"
-                        }
-                      >
-                        <Plus size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handlePriorityQueueAdd(track)}
-                        className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100"
-                        aria-label={`Add ${track.title} to priority queue`}
-                        title="Add to priority queue"
-                      >
-                        <Play size={13} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {!visibleLibraryTracks.length ? (
-                  <p className="px-1 py-2 text-sm text-zinc-500">
-                    No tracks in this playlist.
-                  </p>
-                ) : null}
-              </div>
-            </div>
+            ) : null}
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
               <div className="flex items-center justify-between gap-2">
@@ -1030,7 +1043,11 @@ export default function MusicPage() {
                             value: !shuffleEnabled,
                           });
                         }}
-                        className={`${getControlClassName("set_shuffle", "h-7 w-7")} ${shuffleEnabled ? ACCENT_CLASS : "text-zinc-100"}`}
+                        className={getControlClassName(
+                          "set_shuffle",
+                          "h-7 w-7",
+                          shuffleEnabled,
+                        )}
                         title="Shuffle"
                         disabled={isSendingAction}
                       >
@@ -1044,7 +1061,11 @@ export default function MusicPage() {
                             value: !loopEnabled,
                           });
                         }}
-                        className={`${getControlClassName("set_loop", "h-7 w-7")} ${loopEnabled ? ACCENT_CLASS : "text-zinc-100"}`}
+                        className={getControlClassName(
+                          "set_loop",
+                          "h-7 w-7",
+                          loopEnabled,
+                        )}
                         title="Loop"
                         disabled={isSendingAction}
                       >
@@ -1113,7 +1134,7 @@ export default function MusicPage() {
                 </button>
               </div>
 
-              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+              <div className="max-h-[27rem] space-y-2 overflow-y-auto pr-1">
                 {currentQueueItems.map((track, index) => {
                   const prefix =
                     track.isPriority && queueTab === "queue"
