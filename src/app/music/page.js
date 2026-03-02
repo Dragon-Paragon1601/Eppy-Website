@@ -228,34 +228,72 @@ export default function MusicPage() {
   }, [normalizedPlaylistSearch, premadePlaylists, orderedUserPlaylists]);
 
   const homeCollectionItems = useMemo(() => {
-    const prioritizedPrivate = (
-      pinnedUserPlaylists.length ? pinnedUserPlaylists : recentUserPlaylists
-    )
-      .slice(0, 6)
-      .map((playlist, index) => ({
+    const maxItems = 8;
+    const items = [];
+    const usedKeys = new Set();
+
+    const pushUnique = (item) => {
+      if (!item || items.length >= maxItems) return;
+      if (usedKeys.has(item.id)) return;
+      usedKeys.add(item.id);
+      items.push(item);
+    };
+
+    pinnedUserPlaylists.forEach((playlist, index) => {
+      pushUnique({
         id: `home-user-${playlist.id}`,
         type: "playlist",
         title: playlist.name,
-        subtitle: pinnedUserPlaylists.length
-          ? `Pinned #${index + 1} • ${playlist.songs} tracks`
-          : `Recently played • ${playlist.songs} tracks`,
+        subtitle: `Pinned #${index + 1} • ${playlist.songs} tracks`,
         scope: "user",
         playlistId: playlist.id,
-      }));
+        isPinned: true,
+      });
+    });
 
-    if (prioritizedPrivate.length) {
-      return prioritizedPrivate;
-    }
+    recentUserPlaylists.forEach((playlist) => {
+      pushUnique({
+        id: `home-user-${playlist.id}`,
+        type: "playlist",
+        title: playlist.name,
+        subtitle: `Recently played • ${playlist.songs} tracks`,
+        scope: "user",
+        playlistId: playlist.id,
+        isPinned: false,
+      });
+    });
 
-    return premadePlaylists.slice(0, 6).map((playlist) => ({
-      id: `home-premade-${playlist.id}`,
-      type: "playlist",
-      title: playlist.name,
-      subtitle: `${playlist.songs} tracks`,
-      scope: "premade",
-      playlistId: playlist.id,
-    }));
-  }, [pinnedUserPlaylists, premadePlaylists, recentUserPlaylists]);
+    orderedUserPlaylists.forEach((playlist) => {
+      pushUnique({
+        id: `home-user-${playlist.id}`,
+        type: "playlist",
+        title: playlist.name,
+        subtitle: `${playlist.songs} tracks`,
+        scope: "user",
+        playlistId: playlist.id,
+        isPinned: playlist.is_pinned === true,
+      });
+    });
+
+    premadePlaylists.forEach((playlist) => {
+      pushUnique({
+        id: `home-premade-${playlist.id}`,
+        type: "playlist",
+        title: playlist.name,
+        subtitle: `${playlist.songs} tracks`,
+        scope: "premade",
+        playlistId: playlist.id,
+        isPinned: false,
+      });
+    });
+
+    return items;
+  }, [
+    orderedUserPlaylists,
+    pinnedUserPlaylists,
+    premadePlaylists,
+    recentUserPlaylists,
+  ]);
 
   const runActionBatch = useCallback(
     async (actions = []) => {
@@ -1088,7 +1126,7 @@ export default function MusicPage() {
                             disabled={
                               !playlist.is_pinned && pinnedPlaylistCount >= 8
                             }
-                            className={`absolute right-2 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                            className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
                             aria-label={
                               playlist.is_pinned
                                 ? `Unpin ${playlist.name}`
@@ -1216,7 +1254,7 @@ export default function MusicPage() {
                           disabled={
                             !playlist.is_pinned && pinnedPlaylistCount >= 8
                           }
-                          className={`absolute right-2 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
                           aria-label={
                             playlist.is_pinned
                               ? `Unpin ${playlist.name}`
@@ -1405,7 +1443,7 @@ export default function MusicPage() {
                         <p className="truncate text-sm text-zinc-100">
                           {item.title}
                         </p>
-                        {item.scope === "user" && pinnedUserPlaylists.length ? (
+                        {item.scope === "user" && item.isPinned ? (
                           <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-500/70 bg-amber-500/15 text-amber-300">
                             <Pin size={10} />
                           </span>
