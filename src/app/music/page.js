@@ -1126,7 +1126,7 @@ export default function MusicPage() {
                             disabled={
                               !playlist.is_pinned && pinnedPlaylistCount >= 8
                             }
-                            className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                            className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
                             aria-label={
                               playlist.is_pinned
                                 ? `Unpin ${playlist.name}`
@@ -1220,9 +1220,6 @@ export default function MusicPage() {
 
                   <p className="mb-2 flex items-center gap-2 text-sm text-zinc-300">
                     <span>Your playlists</span>
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-amber-500/70 bg-amber-500/15 text-amber-300">
-                      <Pin size={10} />
-                    </span>
                   </p>
                   <div className="space-y-2">
                     {filteredUserPlaylists.map((playlist) => (
@@ -1254,7 +1251,7 @@ export default function MusicPage() {
                           disabled={
                             !playlist.is_pinned && pinnedPlaylistCount >= 8
                           }
-                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
                           aria-label={
                             playlist.is_pinned
                               ? `Unpin ${playlist.name}`
@@ -1437,18 +1434,17 @@ export default function MusicPage() {
                       key={item.id}
                       type="button"
                       onClick={() => handleOpenPlaylistFromHome(item)}
-                      className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-left hover:bg-zinc-900"
+                      className="relative rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-left hover:bg-zinc-900"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm text-zinc-100">
-                          {item.title}
-                        </p>
-                        {item.scope === "user" && item.isPinned ? (
-                          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-500/70 bg-amber-500/15 text-amber-300">
-                            <Pin size={10} />
-                          </span>
-                        ) : null}
-                      </div>
+                      {item.scope === "user" && item.isPinned ? (
+                        <span className="absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border border-amber-500/70 bg-amber-500/15 text-amber-300">
+                          <Pin size={12} />
+                        </span>
+                      ) : null}
+
+                      <p className="truncate text-sm text-zinc-100">
+                        {item.title}
+                      </p>
                       <p className="text-xs text-zinc-400">{item.subtitle}</p>
                     </button>
                   ))}
