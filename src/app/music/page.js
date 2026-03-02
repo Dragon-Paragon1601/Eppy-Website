@@ -14,6 +14,7 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
+  Trash2,
 } from "lucide-react";
 
 const ACCENT_CLASS = "text-blue-300";
@@ -274,6 +275,7 @@ export default function MusicPage() {
 
   const currentQueueItems =
     queueTab === "queue" ? queueWithPriority : previouslyPlayedItems;
+  const hasQueuedTracks = queueWithPriority.length > 0;
 
   const currentState = useMemo(() => {
     const playbackState = musicState.playback_state || "idle";
@@ -373,6 +375,10 @@ export default function MusicPage() {
       track_title: track.title,
       track_path: track.path || null,
     });
+  };
+
+  const handleClearCurrentQueue = () => {
+    sendAction("clear_queue");
   };
 
   const handleBackToHome = () => {
@@ -959,20 +965,35 @@ export default function MusicPage() {
             </div>
 
             <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-2">
-              <div className="mb-2 flex items-center gap-4 border-b border-zinc-800 px-1">
+              <div className="mb-2 flex items-center justify-between gap-2 border-b border-zinc-800 px-1">
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setQueueTab("queue")}
+                    className={`pb-1 text-xs transition ${queueTab === "queue" ? `${ACCENT_CLASS} border-b ${ACCENT_BORDER_CLASS}` : "text-zinc-400 border-b border-transparent"}`}
+                  >
+                    Queue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQueueTab("previous")}
+                    className={`pb-1 text-xs transition ${queueTab === "previous" ? `${ACCENT_CLASS} border-b ${ACCENT_BORDER_CLASS}` : "text-zinc-400 border-b border-transparent"}`}
+                  >
+                    Previously played
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setQueueTab("queue")}
-                  className={`pb-1 text-xs transition ${queueTab === "queue" ? `${ACCENT_CLASS} border-b ${ACCENT_BORDER_CLASS}` : "text-zinc-400 border-b border-transparent"}`}
+                  onClick={handleClearCurrentQueue}
+                  disabled={
+                    isSendingAction || queueTab !== "queue" || !hasQueuedTracks
+                  }
+                  className="mb-1 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition hover:bg-zinc-800 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  title="Clear queue (keeps currently playing track)"
+                  aria-label="Clear queue"
                 >
-                  Queue
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQueueTab("previous")}
-                  className={`pb-1 text-xs transition ${queueTab === "previous" ? `${ACCENT_CLASS} border-b ${ACCENT_BORDER_CLASS}` : "text-zinc-400 border-b border-transparent"}`}
-                >
-                  Previously played
+                  <Trash2 size={13} />
                 </button>
               </div>
 

@@ -20,6 +20,7 @@ const ALLOWED_ACTIONS = new Set([
   "enqueue_priority",
   "remove_priority",
   "remove_queue",
+  "clear_queue",
   "create_user_playlist",
   "delete_user_playlist",
   "add_track_to_user_playlist",
