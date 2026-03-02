@@ -320,6 +320,7 @@ export async function POST(request) {
   }
 
   const payload = {
+    mode: body?.mode || null,
     value: body?.value,
     track_title: body?.track_title || null,
     track_path: body?.track_path || null,
@@ -343,6 +344,16 @@ export async function POST(request) {
     payload.playlist_id = playlistId;
     payload.playlist_name = playlistName || null;
     payload.playlist_scope = String(payload.playlist_scope || "").slice(0, 16);
+  }
+
+  if (action === "set_shuffle") {
+    const mode = String(payload.mode || "").toLowerCase();
+    if (mode === "off" || mode === "shuffle" || mode === "smart") {
+      payload.mode = mode;
+      payload.value = mode !== "off";
+    } else {
+      payload.mode = null;
+    }
   }
 
   if (action === "enqueue_playlists") {
