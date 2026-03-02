@@ -278,14 +278,41 @@ export default function MusicPage() {
         id: track.path || `p-${index}`,
       }),
     );
-    const regularItems = (musicState.queue || []).map((track, index) => ({
+    const regularQueue = musicState.queue || [];
+    const nowPlayingTitle = (musicState.now_playing_title || "")
+      .trim()
+      .toLowerCase();
+    const nowPlayingArtist = (musicState.now_playing_artist || "")
+      .trim()
+      .toLowerCase();
+
+    const firstQueueItem = regularQueue[0];
+    const firstQueueTitle = (firstQueueItem?.title || "").trim().toLowerCase();
+    const firstQueueArtist = (firstQueueItem?.artist || "")
+      .trim()
+      .toLowerCase();
+
+    const shouldSkipFirstQueueItem =
+      !!firstQueueItem &&
+      nowPlayingTitle.length > 0 &&
+      firstQueueTitle === nowPlayingTitle &&
+      firstQueueArtist === nowPlayingArtist;
+
+    const regularItems = (
+      shouldSkipFirstQueueItem ? regularQueue.slice(1) : regularQueue
+    ).map((track, index) => ({
       ...track,
       isPriority: false,
       id: track.path || `q-${index}`,
     }));
 
     return [...priorityItems, ...regularItems];
-  }, [musicState.priorityQueue, musicState.queue]);
+  }, [
+    musicState.now_playing_artist,
+    musicState.now_playing_title,
+    musicState.priorityQueue,
+    musicState.queue,
+  ]);
 
   const previouslyPlayedItems = useMemo(
     () =>
@@ -502,14 +529,24 @@ export default function MusicPage() {
       selectedUserPlaylist &&
       selectedUserPlaylist.name === selectedPlaylistName
     ) {
-      const trackKeys = new Set(
-        (selectedUserPlaylist.tracks || [])
-          .map((track) => track.track_key)
-          .filter(Boolean),
-      );
-      return sortedLibraryTracks.filter((track) =>
-        trackKeys.has(track.track_key),
-      );
+      return (selectedUserPlaylist.tracks || [])
+        .filter((track) => !!track.track_key)
+        .map((track, index) => {
+          const key = String(track.track_key);
+          const libraryTrack = trackByKey.get(key);
+
+          return {
+            ...(libraryTrack || {}),
+            ...track,
+            id:
+              libraryTrack?.id ||
+              track.track_key ||
+              track.path ||
+              `user-playlist-track-${index}`,
+            number: index + 1,
+            duration: track.duration || libraryTrack?.duration || "--:--",
+          };
+        });
     }
 
     return sortedLibraryTracks.filter(
@@ -519,6 +556,7 @@ export default function MusicPage() {
     browseView,
     selectedPlaylistName,
     selectedUserPlaylist,
+    trackByKey,
     sortedLibraryTracks,
   ]);
 
@@ -832,7 +870,7 @@ export default function MusicPage() {
             </div>
 
             <p className="mb-2 text-xs text-zinc-400">Premade playlists</p>
-            <div className="mb-4 space-y-2">
+            <div className="mb-4 max-h-44 space-y-2 overflow-y-auto pr-1">
               {premadePlaylists.map((playlist) => (
                 <div
                   key={playlist.id}
@@ -869,7 +907,7 @@ export default function MusicPage() {
             </div>
 
             <p className="mb-2 text-xs text-zinc-400">Your playlists</p>
-            <div className="space-y-2">
+            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
               {userPlaylists.map((playlist) => (
                 <div
                   key={playlist.id}
@@ -1046,7 +1084,7 @@ export default function MusicPage() {
               </p>
               {browseView === "home" ? (
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {HOME_COLLECTIONS.slice(0, 4).map((item) => (
+                  {HOME_COLLECTIONS.slice(0, 6).map((item) => (
                     <button
                       key={item.id}
                       type="button"
