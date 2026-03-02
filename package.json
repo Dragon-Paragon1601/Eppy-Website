@@ -6,7 +6,13 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:restart": "pm2 restart ecosystem.config.js",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:delete": "pm2 delete ecosystem.config.js",
+    "pm2:logs": "pm2 logs eppy-website",
+    "pm2:save": "pm2 save"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.2",
@@ -32,7 +38,8 @@
     "tailwind-merge": "^3.0.2",
     "tailwind-variants": "^1.0.0",
     "tailwindcss-animate": "^1.0.7",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -40,6 +47,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
     "eslint-config-next": "15.2.1",
+    "pm2": "^5.4.3",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17"
   }
