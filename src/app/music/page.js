@@ -1355,7 +1355,7 @@ export default function MusicPage() {
 
             {isServerPickerOpen ? (
               <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[60] rounded-lg border border-zinc-700 bg-zinc-950/95 p-2 shadow-lg">
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                <div className="app-scrollbar space-y-2 max-h-64 overflow-y-auto pr-1">
                   {servers
                     .filter((server) => server.guild_id !== selectedGuildId)
                     .map((server) => (
@@ -1458,7 +1458,7 @@ export default function MusicPage() {
               </div>
             </div>
 
-            <div className="max-h-[32rem] overflow-y-auto overflow-x-hidden pr-2 [scrollbar-gutter:stable]">
+            <div className="app-scrollbar max-h-[32rem] overflow-y-auto overflow-x-hidden pr-2 [scrollbar-gutter:stable]">
               {isPlaylistSearchOpen ? (
                 <div className="mb-3 flex items-center gap-2">
                   <div className="relative flex-1 group">
@@ -1790,7 +1790,7 @@ export default function MusicPage() {
                   />
 
                   {isSearchOpen ? (
-                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 max-h-72 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-950 p-2 shadow-xl">
+                    <div className="app-scrollbar absolute left-0 right-0 top-[calc(100%+8px)] z-40 max-h-72 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-950 p-2 shadow-xl">
                       {searchResults.length ? (
                         <div className="space-y-2">
                           {searchResults.map((track) => (
@@ -1969,7 +1969,7 @@ export default function MusicPage() {
                   </div>
                 </div>
 
-                <div className="max-h-[21rem] space-y-2 overflow-y-auto pr-1">
+                <div className="app-scrollbar max-h-[21rem] space-y-2 overflow-y-auto pr-1">
                   {visibleLibraryTracks.map((track) => {
                     const isDraggedTrack =
                       String(draggedPlaylistTrackKey || "") ===
@@ -2287,7 +2287,7 @@ export default function MusicPage() {
                 </button>
               </div>
 
-              <div className="max-h-[27rem] space-y-2 overflow-y-auto pr-1">
+              <div className="app-scrollbar max-h-[27rem] space-y-2 overflow-y-auto pr-1">
                 {currentQueueItems.map((track, index) => {
                   const isDraggedQueueTrack =
                     draggedQueueTrack &&
@@ -2399,7 +2399,7 @@ export default function MusicPage() {
               Selected tracks: {pendingAddTrackKeys.length}
             </p>
 
-            <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
+            <div className="app-scrollbar mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
               {userPlaylists.map((playlist) => {
                 const isChecked = checkedPlaylistIds.includes(playlist.id);
                 return (
