@@ -166,6 +166,11 @@ export default function MusicPage() {
     };
   }, [selectedGuildId, session, fetchMusicState]);
 
+  const selectedGuild = useMemo(
+    () => servers.find((server) => server.guild_id === selectedGuildId),
+    [selectedGuildId, servers],
+  );
+
   const sendAction = useCallback(
     async (action, payload = {}) => {
       if (!selectedGuildId || isSendingAction || !selectedGuild?.can_edit)
@@ -200,11 +205,6 @@ export default function MusicPage() {
 
   const shuffleEnabled = musicState.is_shuffle_enabled === true;
   const loopEnabled = musicState.is_loop_enabled === true;
-
-  const selectedGuild = useMemo(
-    () => servers.find((server) => server.guild_id === selectedGuildId),
-    [selectedGuildId, servers],
-  );
 
   const sortedLibraryTracks = useMemo(() => {
     const tracksWithNumber = libraryTracks.map((track, index) => ({
