@@ -38,18 +38,18 @@ const NOTIFICATION_FIELDS = [
     requiresChannel: false,
   },
   {
-    id: "welcome-channel",
-    key: "welcome_channel_id",
-    label: "Welcome",
-    toggleKey: "welcome_notifications_enabled",
-    requiresChannel: true,
-  },
-  {
     id: "queue-channel",
     key: "queue_channel_id",
     label: "Queue",
     toggleKey: "queue_notifications_enabled",
     requiresChannel: false,
+  },
+  {
+    id: "welcome-channel",
+    key: "welcome_channel_id",
+    label: "Welcome",
+    toggleKey: "welcome_notifications_enabled",
+    requiresChannel: true,
   },
   {
     id: "notification-channel",
@@ -643,6 +643,15 @@ function formatRoleColor(colorValue) {
   return `#${safeNumber.toString(16).padStart(6, "0").toUpperCase()}`;
 }
 
+function formatRoleName(roleName) {
+  const safeName = String(roleName || "").trim();
+  if (!safeName.length) {
+    return "unknown";
+  }
+
+  return safeName.replace(/^@+/, "");
+}
+
 function RoleSelect({ id, label, value, roles, onChange, disabled = false }) {
   const selectedRole = roles.find((role) => role.role_id === value) || null;
   const selectedColor = selectedRole
@@ -660,14 +669,22 @@ function RoleSelect({ id, label, value, roles, onChange, disabled = false }) {
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         className="w-full p-2 rounded-md bg-zinc-950 border border-zinc-700 disabled:opacity-60 disabled:cursor-not-allowed"
+        style={
+          selectedColor
+            ? {
+                borderColor: selectedColor,
+                boxShadow: `0 0 0 1px ${selectedColor}`,
+              }
+            : undefined
+        }
       >
         <option value="">None</option>
         {roles.map((role) => {
-          const colorHex = formatRoleColor(role.role_color);
+          const displayName = formatRoleName(role.role_name);
           const level = Number(role.permission_level || 0);
           return (
             <option key={role.role_id} value={role.role_id}>
-              @{role.role_name} • {colorHex} • lvl {level}
+              @{displayName} • lvl {level}
             </option>
           );
         })}
@@ -676,13 +693,11 @@ function RoleSelect({ id, label, value, roles, onChange, disabled = false }) {
       {selectedRole ? (
         <div className="mt-2 flex items-center gap-2 text-xs text-zinc-300">
           <span
-            className="inline-block h-3 w-3 rounded-full border border-zinc-600"
+            className="inline-block h-3 w-3 rounded-full border border-zinc-500"
             style={{ backgroundColor: selectedColor }}
             aria-hidden
           />
-          <span>
-            Selected: @{selectedRole.role_name} ({selectedColor})
-          </span>
+          <span>Selected: @{formatRoleName(selectedRole.role_name)}</span>
         </div>
       ) : (
         <p className="text-xs text-zinc-400 mt-1">No role selected.</p>
