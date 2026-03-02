@@ -93,6 +93,9 @@ export default function MusicPage() {
   const [userPlaylists, setUserPlaylists] = useState([]);
   const [userVoiceState, setUserVoiceState] = useState(null);
   const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
+  const [isPlaylistSearchOpen, setIsPlaylistSearchOpen] = useState(false);
+  const [playlistSearchValue, setPlaylistSearchValue] = useState("");
   const [selectedUserPlaylistId, setSelectedUserPlaylistId] = useState(null);
   const [searchValue, setSearchValue] = useState("");
   const [sortBy, setSortBy] = useState("number");
@@ -182,6 +185,55 @@ export default function MusicPage() {
     () => servers.find((server) => server.guild_id === selectedGuildId),
     [selectedGuildId, servers],
   );
+
+  const normalizedPlaylistSearch = playlistSearchValue.trim().toLowerCase();
+
+  const filteredPremadePlaylists = useMemo(() => {
+    if (!normalizedPlaylistSearch) {
+      return premadePlaylists;
+    }
+
+    return premadePlaylists.filter((playlist) =>
+      String(playlist?.name || "")
+        .toLowerCase()
+        .includes(normalizedPlaylistSearch),
+    );
+  }, [normalizedPlaylistSearch, premadePlaylists]);
+
+  const filteredUserPlaylists = useMemo(() => {
+    if (!normalizedPlaylistSearch) {
+      return userPlaylists;
+    }
+
+    return userPlaylists.filter((playlist) =>
+      String(playlist?.name || "")
+        .toLowerCase()
+        .includes(normalizedPlaylistSearch),
+    );
+  }, [normalizedPlaylistSearch, userPlaylists]);
+
+  const mergedFilteredPlaylists = useMemo(() => {
+    const allPlaylists = [
+      ...premadePlaylists.map((playlist) => ({
+        ...playlist,
+        scope: "premade",
+      })),
+      ...userPlaylists.map((playlist) => ({
+        ...playlist,
+        scope: "user",
+      })),
+    ];
+
+    if (!normalizedPlaylistSearch) {
+      return allPlaylists;
+    }
+
+    return allPlaylists.filter((playlist) =>
+      String(playlist?.name || "")
+        .toLowerCase()
+        .includes(normalizedPlaylistSearch),
+    );
+  }, [normalizedPlaylistSearch, premadePlaylists, userPlaylists]);
 
   const runActionBatch = useCallback(
     async (actions = []) => {
@@ -417,6 +469,7 @@ export default function MusicPage() {
 
     sendAction("create_user_playlist", { playlist_name: safeName });
     setNewPlaylistName("");
+    setIsCreatePlaylistOpen(false);
   };
 
   const handleDeletePlaylist = (playlistId, playlistName = "this playlist") => {
@@ -851,115 +904,258 @@ export default function MusicPage() {
           <aside className="lg:col-span-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold">Library</h2>
-              <div className="flex items-center gap-1">
-                <input
-                  value={newPlaylistName}
-                  onChange={(event) => setNewPlaylistName(event.target.value)}
-                  placeholder="New playlist"
-                  className="w-28 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 placeholder:text-zinc-500"
-                />
+              <div className="relative">
                 <button
                   type="button"
-                  onClick={handleCreatePlaylist}
-                  className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs hover:bg-zinc-800"
-                  title="Create playlist"
+                  onClick={() => setIsCreatePlaylistOpen((current) => !current)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+                  title="Create private playlist"
                 >
-                  <Plus size={13} /> New
+                  <Plus size={14} />
                 </button>
+
+                {isCreatePlaylistOpen ? (
+                  <div className="absolute right-0 top-[calc(100%+8px)] z-20 w-64 rounded-lg border border-zinc-700 bg-zinc-950 p-3 shadow-xl">
+                    <input
+                      value={newPlaylistName}
+                      onChange={(event) =>
+                        setNewPlaylistName(event.target.value)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          handleCreatePlaylist();
+                        }
+                      }}
+                      autoFocus
+                      placeholder="Playlist name"
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500"
+                    />
+
+                    <div className="mt-3 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCreatePlaylistOpen(false);
+                          setNewPlaylistName("");
+                        }}
+                        className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-200 hover:bg-zinc-800"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCreatePlaylist}
+                        disabled={!newPlaylistName.trim().length}
+                        className="rounded-md border border-green-600/70 bg-green-600/20 px-2.5 py-1 text-xs text-green-200 hover:bg-green-600/30 disabled:opacity-40"
+                      >
+                        Create
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 
             <div className="max-h-[32rem] overflow-y-auto pr-1">
-              <p className="mb-2 text-xs text-zinc-400">Premade playlists</p>
-              <div className="mb-4 space-y-2">
-                {premadePlaylists.map((playlist) => (
-                  <div
-                    key={playlist.id}
-                    className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, "premade")) ? "border-green-500/70 bg-green-500/10" : "border-zinc-700 bg-zinc-900"}`}
-                  >
-                    <button
-                      type="button"
-                      onClick={(event) =>
-                        handlePlaylistCardClick(event, playlist, "premade")
+              {isPlaylistSearchOpen ? (
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search
+                      size={14}
+                      className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500"
+                    />
+                    <input
+                      value={playlistSearchValue}
+                      onChange={(event) =>
+                        setPlaylistSearchValue(event.target.value)
                       }
-                      className="w-full pr-9 text-left"
-                    >
-                      <p className="truncate text-sm text-zinc-100">
-                        {playlist.name}
-                      </p>
-                      <p className="text-[11px] text-zinc-400">
-                        {playlist.songs} tracks
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handlePlaylistQueueAdd(playlist, "premade");
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100"
-                      aria-label={`Play ${playlist.name}`}
-                      title={`Play ${playlist.name}`}
-                    >
-                      <Play size={13} />
-                    </button>
+                      placeholder="Search all playlists"
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-950 py-1.5 pl-7 pr-2 text-xs text-zinc-100 placeholder:text-zinc-500"
+                    />
                   </div>
-                ))}
-              </div>
-
-              <p className="mb-2 text-xs text-zinc-400">Your playlists</p>
-              <div className="space-y-2">
-                {userPlaylists.map((playlist) => (
-                  <div
-                    key={playlist.id}
-                    className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, "user")) ? "border-green-500/70 bg-green-500/10" : selectedUserPlaylistId === playlist.id ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPlaylistSearchOpen(false);
+                      setPlaylistSearchValue("");
+                    }}
+                    className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 hover:bg-zinc-800"
                   >
-                    <button
-                      type="button"
-                      onClick={(event) =>
-                        handlePlaylistCardClick(event, playlist, "user")
-                      }
-                      className="w-full pr-9 text-left"
-                    >
-                      <p className="truncate text-sm text-zinc-100">
-                        {playlist.name}
-                      </p>
-                      <p className="text-[11px] text-zinc-400">
-                        owner: {playlist.owner} • {playlist.songs} tracks
-                      </p>
-                    </button>
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-sm text-zinc-300">Premade playlists</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsPlaylistSearchOpen(true)}
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+                    title="Search playlists"
+                    aria-label="Search playlists"
+                  >
+                    <Search size={13} />
+                  </button>
+                </div>
+              )}
 
-                    <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={() => handlePlaylistQueueAdd(playlist, "user")}
-                        className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100"
-                        aria-label={`Play ${playlist.name}`}
-                        title={`Play ${playlist.name}`}
+              {isPlaylistSearchOpen ? (
+                <div className="space-y-2">
+                  {mergedFilteredPlaylists.map((playlist) => {
+                    const scope = playlist.scope;
+                    return (
+                      <div
+                        key={`${scope}:${playlist.id || playlist.name}`}
+                        className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, scope)) ? "border-green-500/70 bg-green-500/10" : scope === "user" && selectedUserPlaylistId === playlist.id ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
                       >
-                        <Play size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDeletePlaylist(playlist.id, playlist.name)
-                        }
-                        className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-red-300"
-                        aria-label={`Delete ${playlist.name}`}
-                        title={`Delete ${playlist.name}`}
+                        <button
+                          type="button"
+                          onClick={(event) =>
+                            handlePlaylistCardClick(event, playlist, scope)
+                          }
+                          className="w-full pr-9 text-left"
+                        >
+                          <p className="truncate text-sm text-zinc-100">
+                            {playlist.name}
+                          </p>
+                          <p className="text-[11px] text-zinc-400">
+                            {scope === "user"
+                              ? `owner: ${playlist.owner} • ${playlist.songs} tracks`
+                              : `${playlist.songs} tracks`}
+                          </p>
+                        </button>
+
+                        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handlePlaylistQueueAdd(playlist, scope)
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100"
+                            aria-label={`Play ${playlist.name}`}
+                            title={`Play ${playlist.name}`}
+                          >
+                            <Play size={13} />
+                          </button>
+                          {scope === "user" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDeletePlaylist(playlist.id, playlist.name)
+                              }
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-red-300"
+                              aria-label={`Delete ${playlist.name}`}
+                              title={`Delete ${playlist.name}`}
+                            >
+                              X
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {!mergedFilteredPlaylists.length ? (
+                    <p className="text-[11px] text-zinc-500">
+                      No playlists match your search.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4 space-y-2">
+                    {filteredPremadePlaylists.map((playlist) => (
+                      <div
+                        key={playlist.id}
+                        className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, "premade")) ? "border-green-500/70 bg-green-500/10" : "border-zinc-700 bg-zinc-900"}`}
                       >
-                        X
-                      </button>
-                    </div>
+                        <button
+                          type="button"
+                          onClick={(event) =>
+                            handlePlaylistCardClick(event, playlist, "premade")
+                          }
+                          className="w-full pr-9 text-left"
+                        >
+                          <p className="truncate text-sm text-zinc-100">
+                            {playlist.name}
+                          </p>
+                          <p className="text-[11px] text-zinc-400">
+                            {playlist.songs} tracks
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handlePlaylistQueueAdd(playlist, "premade");
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100"
+                          aria-label={`Play ${playlist.name}`}
+                          title={`Play ${playlist.name}`}
+                        >
+                          <Play size={13} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
 
-                {!userPlaylists.length ? (
-                  <p className="text-[11px] text-zinc-500">
-                    No custom playlists yet.
-                  </p>
-                ) : null}
-              </div>
+                  <p className="mb-2 text-sm text-zinc-300">Your playlists</p>
+                  <div className="space-y-2">
+                    {filteredUserPlaylists.map((playlist) => (
+                      <div
+                        key={playlist.id}
+                        className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, "user")) ? "border-green-500/70 bg-green-500/10" : selectedUserPlaylistId === playlist.id ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
+                      >
+                        <button
+                          type="button"
+                          onClick={(event) =>
+                            handlePlaylistCardClick(event, playlist, "user")
+                          }
+                          className="w-full pr-9 text-left"
+                        >
+                          <p className="truncate text-sm text-zinc-100">
+                            {playlist.name}
+                          </p>
+                          <p className="text-[11px] text-zinc-400">
+                            owner: {playlist.owner} • {playlist.songs} tracks
+                          </p>
+                        </button>
+
+                        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handlePlaylistQueueAdd(playlist, "user")
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100"
+                            aria-label={`Play ${playlist.name}`}
+                            title={`Play ${playlist.name}`}
+                          >
+                            <Play size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDeletePlaylist(playlist.id, playlist.name)
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-red-300"
+                            aria-label={`Delete ${playlist.name}`}
+                            title={`Delete ${playlist.name}`}
+                          >
+                            X
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {!filteredUserPlaylists.length ? (
+                      <p className="text-[11px] text-zinc-500">
+                        No custom playlists yet.
+                      </p>
+                    ) : null}
+                  </div>
+                </>
+              )}
             </div>
           </aside>
 
@@ -1086,7 +1282,7 @@ export default function MusicPage() {
               </p>
               {browseView === "home" ? (
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {HOME_COLLECTIONS.slice(0, 6).map((item) => (
+                  {HOME_COLLECTIONS.slice(0, 8).map((item) => (
                     <button
                       key={item.id}
                       type="button"
@@ -1146,19 +1342,36 @@ export default function MusicPage() {
                       onClick={(event) => handleTrackCardClick(event, track)}
                       className={`group flex items-center justify-between rounded-md border px-3 py-2 ${selectedTrackKeys.includes(String(track.track_key || track.path || track.id || "")) ? "border-green-500/70 bg-green-500/10" : "border-zinc-700 bg-zinc-950"}`}
                     >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-zinc-100">
-                          {track.number} • {track.title}
-                        </p>
-                        <p className="truncate text-xs text-zinc-400">
-                          {track.artist}
-                        </p>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <div className="relative flex h-7 w-7 shrink-0 items-center justify-center">
+                          <span className="text-xs text-zinc-400 transition-opacity group-hover:opacity-0">
+                            {track.number}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handlePriorityQueueAdd(track);
+                            }}
+                            className="absolute flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100"
+                            aria-label={`Add ${track.title} to priority queue`}
+                            title="Add to priority queue"
+                          >
+                            <Play size={13} />
+                          </button>
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-zinc-100">
+                            {track.title}
+                          </p>
+                          <p className="truncate text-xs text-zinc-400">
+                            {track.artist}
+                          </p>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <p className="text-xs text-zinc-400">
-                          {track.duration}
-                        </p>
                         {isSelectedPrivatePlaylistView ? (
                           <button
                             type="button"
@@ -1175,6 +1388,9 @@ export default function MusicPage() {
                             <Trash2 size={12} />
                           </button>
                         ) : null}
+                        <p className="w-14 text-right text-xs text-zinc-400">
+                          {track.duration}
+                        </p>
                         <button
                           type="button"
                           onClick={(event) => {
@@ -1186,18 +1402,6 @@ export default function MusicPage() {
                           title="Add to playlists"
                         >
                           <Plus size={12} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handlePriorityQueueAdd(track);
-                          }}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 "
-                          aria-label={`Add ${track.title} to priority queue`}
-                          title="Add to priority queue"
-                        >
-                          <Play size={13} />
                         </button>
                       </div>
                     </div>
