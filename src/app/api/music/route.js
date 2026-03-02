@@ -36,7 +36,7 @@ const TABLE_DEFINITIONS = [
   },
   {
     table: "guild_music_state",
-    sql: "CREATE TABLE IF NOT EXISTS guild_music_state (guild_id VARCHAR(32) NOT NULL PRIMARY KEY, playback_state VARCHAR(16) NOT NULL DEFAULT 'idle', channel_label VARCHAR(255) NULL, now_playing_title VARCHAR(255) NULL, now_playing_artist VARCHAR(255) NULL, is_shuffle_enabled TINYINT(1) NOT NULL DEFAULT 0, is_loop_enabled TINYINT(1) NOT NULL DEFAULT 0, queue_json LONGTEXT NULL, priority_queue_json LONGTEXT NULL, previous_queue_json LONGTEXT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    sql: "CREATE TABLE IF NOT EXISTS guild_music_state (guild_id VARCHAR(32) NOT NULL PRIMARY KEY, playback_state VARCHAR(16) NOT NULL DEFAULT 'idle', channel_label VARCHAR(255) NULL, now_playing_title VARCHAR(255) NULL, now_playing_artist VARCHAR(255) NULL, shuffle_mode VARCHAR(16) NOT NULL DEFAULT 'off', is_shuffle_enabled TINYINT(1) NOT NULL DEFAULT 0, is_loop_enabled TINYINT(1) NOT NULL DEFAULT 0, queue_json LONGTEXT NULL, priority_queue_json LONGTEXT NULL, previous_queue_json LONGTEXT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
   },
   {
     table: "music_library_tracks",
@@ -61,6 +61,7 @@ const EMPTY_STATE = {
   channel_label: "No channel",
   now_playing_title: "Nothing playing",
   now_playing_artist: "",
+  shuffle_mode: "off",
   is_shuffle_enabled: false,
   is_loop_enabled: false,
   queue: [],
@@ -130,6 +131,16 @@ async function ensureMusicTables() {
       throw error;
     }
   }
+
+  try {
+    await promisePool.query(
+      "ALTER TABLE guild_music_state ADD COLUMN shuffle_mode VARCHAR(16) NOT NULL DEFAULT 'off'",
+    );
+  } catch (error) {
+    if (!String(error?.message || "").includes("Duplicate column")) {
+      throw error;
+    }
+  }
 }
 
 async function canAccessGuild(userId, guildId) {
@@ -174,6 +185,12 @@ export async function GET(request) {
     channel_label: row.channel_label || "No channel",
     now_playing_title: row.now_playing_title || "Nothing playing",
     now_playing_artist: row.now_playing_artist || "",
+    shuffle_mode:
+      row.shuffle_mode === "smart" || row.shuffle_mode === "shuffle"
+        ? row.shuffle_mode
+        : normalizeBoolean(row.is_shuffle_enabled, false)
+          ? "shuffle"
+          : "off",
     is_shuffle_enabled: normalizeBoolean(row.is_shuffle_enabled, false),
     is_loop_enabled: normalizeBoolean(row.is_loop_enabled, false),
     queue: parseJsonArray(row.queue_json),

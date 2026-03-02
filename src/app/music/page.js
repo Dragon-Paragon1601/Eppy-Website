@@ -14,6 +14,7 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 
@@ -25,6 +26,7 @@ const EMPTY_MUSIC_STATE = {
   channel_label: "No channel",
   now_playing_title: "Nothing playing",
   now_playing_artist: "",
+  shuffle_mode: "off",
   is_shuffle_enabled: false,
   is_loop_enabled: false,
   queue: [],
@@ -203,7 +205,14 @@ export default function MusicPage() {
     [fetchMusicState, isSendingAction, selectedGuildId],
   );
 
-  const shuffleEnabled = musicState.is_shuffle_enabled === true;
+  const shuffleMode =
+    musicState.shuffle_mode === "smart" || musicState.shuffle_mode === "shuffle"
+      ? musicState.shuffle_mode
+      : musicState.is_shuffle_enabled === true
+        ? "shuffle"
+        : "off";
+  const shuffleEnabled = shuffleMode !== "off";
+  const smartShuffleEnabled = shuffleMode === "smart";
   const loopEnabled = musicState.is_loop_enabled === true;
 
   const sortedLibraryTracks = useMemo(() => {
@@ -1038,9 +1047,16 @@ export default function MusicPage() {
                       <button
                         type="button"
                         onClick={() => {
+                          const nextShuffleMode =
+                            shuffleMode === "off"
+                              ? "shuffle"
+                              : shuffleMode === "shuffle"
+                                ? "smart"
+                                : "off";
                           triggerControlFlash("set_shuffle");
                           sendAction("set_shuffle", {
-                            value: !shuffleEnabled,
+                            mode: nextShuffleMode,
+                            value: nextShuffleMode !== "off",
                           });
                         }}
                         className={getControlClassName(
@@ -1048,10 +1064,26 @@ export default function MusicPage() {
                           "h-7 w-7",
                           shuffleEnabled,
                         )}
-                        title="Shuffle"
+                        title={
+                          smartShuffleEnabled
+                            ? "Smart shuffle"
+                            : shuffleEnabled
+                              ? "Shuffle"
+                              : "Shuffle off"
+                        }
                         disabled={isSendingAction}
                       >
-                        <Shuffle size={14} />
+                        {smartShuffleEnabled ? (
+                          <span className="relative inline-flex h-4 w-4 items-center justify-center">
+                            <Shuffle size={14} />
+                            <Sparkles
+                              size={8}
+                              className="absolute -right-1 -top-1"
+                            />
+                          </span>
+                        ) : (
+                          <Shuffle size={14} />
+                        )}
                       </button>
                       <button
                         type="button"
