@@ -434,6 +434,11 @@ export default function MusicPage() {
     [selectedUserPlaylistId, userPlaylists],
   );
 
+  const isSelectedPrivatePlaylistView =
+    browseView === "playlist" &&
+    selectedUserPlaylist &&
+    selectedUserPlaylist.name === selectedPlaylistName;
+
   const trackByKey = useMemo(() => {
     const byKey = new Map();
     for (const track of sortedLibraryTracks) {
@@ -608,6 +613,25 @@ export default function MusicPage() {
     setIsAddToPlaylistsOpen(false);
     setPendingAddTrackKeys([]);
     setCheckedPlaylistIds([]);
+  };
+
+  const handleRemoveTracksFromSelectedPrivatePlaylist = (track) => {
+    if (!selectedUserPlaylistId) return;
+
+    const tracksToRemove = getSelectedTracksForAction(track).filter(
+      (item) => !!item?.track_key,
+    );
+    if (!tracksToRemove.length) return;
+
+    runActionBatch(
+      tracksToRemove.map((item) => ({
+        action: "remove_track_from_user_playlist",
+        payload: {
+          playlist_id: selectedUserPlaylistId,
+          track_key: item.track_key,
+        },
+      })),
+    );
   };
 
   const handlePlaylistQueueAdd = (playlist, scope = "premade") => {
@@ -1039,44 +1063,8 @@ export default function MusicPage() {
                     </button>
                   ))}
                 </div>
-              ) : browseView === "playlist" &&
-                selectedUserPlaylist &&
-                selectedUserPlaylist.name === selectedPlaylistName ? (
-                <div className="mt-3 space-y-2">
-                  {(selectedUserPlaylist.tracks || []).map((track, index) => (
-                    <div
-                      key={`${selectedUserPlaylist.id}-${track.track_key}-${index}`}
-                      className="flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-zinc-100">
-                          {index + 1}. {track.title}
-                        </p>
-                        <p className="truncate text-xs text-zinc-400">
-                          {track.artist || "Unknown artist"}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleRemoveTrackFromPlaylist(
-                            selectedUserPlaylist.id,
-                            track.track_key,
-                          )
-                        }
-                        className="text-xs text-red-300 hover:text-red-200"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-
-                  {!selectedUserPlaylist.tracks?.length ? (
-                    <p className="text-xs text-zinc-500">
-                      No tracks in this playlist yet.
-                    </p>
-                  ) : null}
-                </div>
+              ) : browseView === "playlist" ? (
+                <></>
               ) : (
                 <p className="mt-2 text-xs text-zinc-400">
                   Currently browsing this section.
@@ -1131,6 +1119,22 @@ export default function MusicPage() {
                         <p className="text-xs text-zinc-400">
                           {track.duration}
                         </p>
+                        {isSelectedPrivatePlaylistView ? (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleRemoveTracksFromSelectedPrivatePlaylist(
+                                track,
+                              );
+                            }}
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-red-300 opacity-0 transition-opacity group-hover:opacity-100"
+                            aria-label="Remove from selected private playlist"
+                            title="Remove from playlist"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={(event) => {
@@ -1372,11 +1376,6 @@ export default function MusicPage() {
 
               <div className="max-h-[27rem] space-y-2 overflow-y-auto pr-1">
                 {currentQueueItems.map((track, index) => {
-                  const prefix =
-                    track.isPriority && queueTab === "queue"
-                      ? `${track.priorityIndex}`
-                      : index + 1;
-
                   return (
                     <div
                       key={`${track.id}-${index}-${queueTab}`}
@@ -1385,7 +1384,7 @@ export default function MusicPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-sm text-zinc-100">
-                            {prefix}. {track.title}
+                            {track.title}
                           </p>
                           <p className="truncate text-[11px] text-zinc-400">
                             {track.artist}
