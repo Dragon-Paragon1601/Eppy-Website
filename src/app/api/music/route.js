@@ -1,0 +1,372 @@
+import { getServerSession } from "next-auth";
+import mysql from "mysql2";
+import { authOptions } from "@/lib/auth";
+
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD || process.env.DB_PASS,
+  database: process.env.DB_NAME,
+});
+
+const promisePool = pool.promise();
+const MANAGE_GUILD_LEVEL = 6;
+const ALLOWED_ACTIONS = new Set([
+  "toggle_pause",
+  "next",
+  "previous",
+  "set_shuffle",
+  "set_loop",
+  "enqueue_priority",
+  "remove_priority",
+  "remove_queue",
+  "create_user_playlist",
+  "delete_user_playlist",
+  "add_track_to_user_playlist",
+  "remove_track_from_user_playlist",
+]);
+
+const TABLE_DEFINITIONS = [
+  {
+    table: "music_command_queue",
+    sql: "CREATE TABLE IF NOT EXISTS music_command_queue (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, guild_id VARCHAR(32) NOT NULL, action VARCHAR(64) NOT NULL, payload_json LONGTEXT NULL, requested_by VARCHAR(32) NULL, status ENUM('pending','processing','done','failed') NOT NULL DEFAULT 'pending', result_message VARCHAR(512) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, processed_at TIMESTAMP NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, KEY idx_music_cmd_status_created (status, created_at), KEY idx_music_cmd_guild_status (guild_id, status)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+  {
+    table: "guild_music_state",
+    sql: "CREATE TABLE IF NOT EXISTS guild_music_state (guild_id VARCHAR(32) NOT NULL PRIMARY KEY, playback_state VARCHAR(16) NOT NULL DEFAULT 'idle', channel_label VARCHAR(255) NULL, now_playing_title VARCHAR(255) NULL, now_playing_artist VARCHAR(255) NULL, is_shuffle_enabled TINYINT(1) NOT NULL DEFAULT 0, is_loop_enabled TINYINT(1) NOT NULL DEFAULT 0, queue_json LONGTEXT NULL, priority_queue_json LONGTEXT NULL, previous_queue_json LONGTEXT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+  {
+    table: "music_library_tracks",
+    sql: "CREATE TABLE IF NOT EXISTS music_library_tracks (track_key VARCHAR(512) NOT NULL PRIMARY KEY, track_path TEXT NOT NULL, playlist_name VARCHAR(255) NULL, title VARCHAR(255) NOT NULL, artist VARCHAR(255) NULL, source_type ENUM('root','folder') NOT NULL DEFAULT 'folder', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, KEY idx_music_library_playlist (playlist_name), KEY idx_music_library_title (title)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+  {
+    table: "guild_music_playlists",
+    sql: "CREATE TABLE IF NOT EXISTS guild_music_playlists (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, guild_id VARCHAR(32) NOT NULL, name VARCHAR(255) NOT NULL, created_by VARCHAR(32) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, UNIQUE KEY uniq_guild_playlist_name (guild_id, name), KEY idx_guild_music_playlists_guild (guild_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+  {
+    table: "guild_music_playlist_tracks",
+    sql: "CREATE TABLE IF NOT EXISTS guild_music_playlist_tracks (playlist_id BIGINT UNSIGNED NOT NULL, track_key VARCHAR(512) NOT NULL, position INT NOT NULL DEFAULT 0, added_by VARCHAR(32) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (playlist_id, track_key), KEY idx_guild_music_playlist_tracks_position (playlist_id, position), CONSTRAINT fk_guild_music_playlist_tracks_playlist FOREIGN KEY (playlist_id) REFERENCES guild_music_playlists(id) ON DELETE CASCADE, CONSTRAINT fk_guild_music_playlist_tracks_track FOREIGN KEY (track_key) REFERENCES music_library_tracks(track_key) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+];
+
+const EMPTY_STATE = {
+  playback_state: "idle",
+  channel_label: "No channel",
+  now_playing_title: "Nothing playing",
+  now_playing_artist: "",
+  is_shuffle_enabled: false,
+  is_loop_enabled: false,
+  queue: [],
+  priorityQueue: [],
+  previousQueue: [],
+};
+
+function jsonResponse(payload, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+function normalizeBoolean(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  if (value === 1 || value === "1" || value === "true") return true;
+  if (value === 0 || value === "0" || value === "false") return false;
+  return fallback;
+}
+
+function parseJsonArray(input) {
+  if (!input || typeof input !== "string") return [];
+  try {
+    const parsed = JSON.parse(input);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function truncate(value, maxLength) {
+  return String(value || "").trim().slice(0, maxLength);
+}
+
+async function ensureMusicTables() {
+  for (const definition of TABLE_DEFINITIONS) {
+    await promisePool.query(definition.sql);
+  }
+}
+
+async function canEditGuild(userId, guildId) {
+  const [rows] = await promisePool.query(
+    "SELECT admin_prem FROM users WHERE user_id = ? AND guild_id = ? LIMIT 1",
+    [userId, guildId],
+  );
+
+  const row = rows?.[0];
+  return Number(row?.admin_prem || 0) >= MANAGE_GUILD_LEVEL;
+}
+
+export async function GET(request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
+
+  const guildId = new URL(request.url).searchParams.get("guild_id");
+  if (!guildId) {
+    return jsonResponse({ error: "guild_id is required" }, 400);
+  }
+
+  await ensureMusicTables();
+
+  const canEdit = await canEditGuild(session.user.id, guildId);
+  if (!canEdit) {
+    return jsonResponse({ error: "No permission to control this guild" }, 403);
+  }
+
+  const [rows] = await promisePool.query(
+    "SELECT * FROM guild_music_state WHERE guild_id = ? LIMIT 1",
+    [guildId],
+  );
+
+  const row = rows?.[0];
+  if (!row) {
+    return jsonResponse({ guild_id: guildId, state: EMPTY_STATE });
+  }
+
+  const state = {
+    playback_state: row.playback_state || "idle",
+    channel_label: row.channel_label || "No channel",
+    now_playing_title: row.now_playing_title || "Nothing playing",
+    now_playing_artist: row.now_playing_artist || "",
+    is_shuffle_enabled: normalizeBoolean(row.is_shuffle_enabled, false),
+    is_loop_enabled: normalizeBoolean(row.is_loop_enabled, false),
+    queue: parseJsonArray(row.queue_json),
+    priorityQueue: parseJsonArray(row.priority_queue_json),
+    previousQueue: parseJsonArray(row.previous_queue_json),
+  };
+
+  const [libraryRows] = await promisePool.query(
+    "SELECT track_key, track_path, playlist_name, title, artist FROM music_library_tracks ORDER BY COALESCE(playlist_name, ''), title ASC",
+  );
+
+  const libraryTracks = libraryRows.map((track) => ({
+    track_key: track.track_key,
+    path: track.track_path,
+    title: track.title,
+    artist: track.artist || "",
+    playlist_name: track.playlist_name || null,
+  }));
+
+  const premadeMap = new Map();
+  for (const track of libraryTracks) {
+    if (!track.playlist_name) continue;
+    premadeMap.set(
+      track.playlist_name,
+      (premadeMap.get(track.playlist_name) || 0) + 1,
+    );
+  }
+
+  const premadePlaylists = Array.from(premadeMap.entries())
+    .map(([name, tracks]) => ({
+      id: name,
+      name,
+      songs: tracks,
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  const [playlistRows] = await promisePool.query(
+    "SELECT p.id, p.name, p.created_by, p.created_at, COUNT(pt.track_key) AS songs FROM guild_music_playlists p LEFT JOIN guild_music_playlist_tracks pt ON pt.playlist_id = p.id WHERE p.guild_id = ? GROUP BY p.id, p.name, p.created_by, p.created_at ORDER BY p.created_at DESC",
+    [guildId],
+  );
+
+  const playlistIds = playlistRows.map((playlist) => playlist.id);
+  let playlistTracksRows = [];
+  if (playlistIds.length > 0) {
+    const [rowsPlaylistTracks] = await promisePool.query(
+      `SELECT pt.playlist_id, pt.track_key, pt.position, l.track_path, l.title, l.artist
+       FROM guild_music_playlist_tracks pt
+       LEFT JOIN music_library_tracks l ON l.track_key = pt.track_key
+       WHERE pt.playlist_id IN (${playlistIds.map(() => "?").join(",")})
+       ORDER BY pt.playlist_id ASC, pt.position ASC, pt.created_at ASC`,
+      playlistIds,
+    );
+    playlistTracksRows = rowsPlaylistTracks;
+  }
+
+  const tracksByPlaylist = new Map();
+  for (const track of playlistTracksRows) {
+    if (!tracksByPlaylist.has(track.playlist_id)) {
+      tracksByPlaylist.set(track.playlist_id, []);
+    }
+
+    tracksByPlaylist.get(track.playlist_id).push({
+      track_key: track.track_key,
+      path: track.track_path,
+      title: track.title,
+      artist: track.artist || "",
+      position: track.position,
+    });
+  }
+
+  const userPlaylists = playlistRows.map((playlist) => ({
+    id: playlist.id,
+    name: playlist.name,
+    songs: Number(playlist.songs || 0),
+    owner: playlist.created_by === session.user.id ? "You" : "Shared",
+    tracks: tracksByPlaylist.get(playlist.id) || [],
+  }));
+
+  return jsonResponse({
+    guild_id: guildId,
+    state,
+    libraryTracks,
+    premadePlaylists,
+    userPlaylists,
+  });
+}
+
+export async function POST(request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
+
+  const body = await request.json().catch(() => null);
+  const guildId = body?.guild_id;
+  const action = body?.action;
+
+  if (!guildId || !action) {
+    return jsonResponse({ error: "guild_id and action are required" }, 400);
+  }
+
+  if (!ALLOWED_ACTIONS.has(action)) {
+    return jsonResponse({ error: "Unsupported action" }, 400);
+  }
+
+  await ensureMusicTables();
+
+  const canEdit = await canEditGuild(session.user.id, guildId);
+  if (!canEdit) {
+    return jsonResponse({ error: "No permission to control this guild" }, 403);
+  }
+
+  const payload = {
+    value: body?.value,
+    track_title: body?.track_title || null,
+    track_path: body?.track_path || null,
+    track_key: body?.track_key || null,
+    playlist_id: body?.playlist_id || null,
+    playlist_name: body?.playlist_name || null,
+  };
+
+  if (action === "create_user_playlist") {
+    const playlistName = truncate(payload.playlist_name, 255);
+    if (!playlistName) {
+      return jsonResponse({ error: "playlist_name is required" }, 400);
+    }
+
+    try {
+      const [result] = await promisePool.query(
+        "INSERT INTO guild_music_playlists (guild_id, name, created_by) VALUES (?, ?, ?)",
+        [guildId, playlistName, session.user.id],
+      );
+      return jsonResponse({ ok: true, playlist_id: result.insertId });
+    } catch (error) {
+      if (String(error?.message || "").toLowerCase().includes("duplicate")) {
+        return jsonResponse({ error: "Playlist with this name already exists" }, 409);
+      }
+      return jsonResponse({ error: "Could not create playlist" }, 500);
+    }
+  }
+
+  if (action === "delete_user_playlist") {
+    if (!payload.playlist_id) {
+      return jsonResponse({ error: "playlist_id is required" }, 400);
+    }
+
+    await promisePool.query(
+      "DELETE FROM guild_music_playlists WHERE id = ? AND guild_id = ?",
+      [payload.playlist_id, guildId],
+    );
+
+    return jsonResponse({ ok: true });
+  }
+
+  if (action === "add_track_to_user_playlist") {
+    if (!payload.playlist_id || !payload.track_key) {
+      return jsonResponse(
+        { error: "playlist_id and track_key are required" },
+        400,
+      );
+    }
+
+    const [playlistRows] = await promisePool.query(
+      "SELECT id FROM guild_music_playlists WHERE id = ? AND guild_id = ? LIMIT 1",
+      [payload.playlist_id, guildId],
+    );
+    if (!playlistRows?.length) {
+      return jsonResponse({ error: "Playlist not found" }, 404);
+    }
+
+    const [trackRows] = await promisePool.query(
+      "SELECT track_key FROM music_library_tracks WHERE track_key = ? LIMIT 1",
+      [payload.track_key],
+    );
+    if (!trackRows?.length) {
+      return jsonResponse({ error: "Track not found in library" }, 404);
+    }
+
+    const [maxPositionRows] = await promisePool.query(
+      "SELECT COALESCE(MAX(position), 0) AS max_position FROM guild_music_playlist_tracks WHERE playlist_id = ?",
+      [payload.playlist_id],
+    );
+
+    const nextPosition = Number(maxPositionRows?.[0]?.max_position || 0) + 1;
+    await promisePool.query(
+      "INSERT INTO guild_music_playlist_tracks (playlist_id, track_key, position, added_by) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE position = VALUES(position)",
+      [payload.playlist_id, payload.track_key, nextPosition, session.user.id],
+    );
+
+    return jsonResponse({ ok: true });
+  }
+
+  if (action === "remove_track_from_user_playlist") {
+    if (!payload.playlist_id || !payload.track_key) {
+      return jsonResponse(
+        { error: "playlist_id and track_key are required" },
+        400,
+      );
+    }
+
+    await promisePool.query(
+      "DELETE FROM guild_music_playlist_tracks WHERE playlist_id = ? AND track_key = ?",
+      [payload.playlist_id, payload.track_key],
+    );
+
+    const [remainingRows] = await promisePool.query(
+      "SELECT track_key FROM guild_music_playlist_tracks WHERE playlist_id = ? ORDER BY position ASC, created_at ASC",
+      [payload.playlist_id],
+    );
+
+    for (let index = 0; index < remainingRows.length; index += 1) {
+      await promisePool.query(
+        "UPDATE guild_music_playlist_tracks SET position = ? WHERE playlist_id = ? AND track_key = ?",
+        [index + 1, payload.playlist_id, remainingRows[index].track_key],
+      );
+    }
+
+    return jsonResponse({ ok: true });
+  }
+
+  const [result] = await promisePool.query(
+    "INSERT INTO music_command_queue (guild_id, action, payload_json, requested_by, status) VALUES (?, ?, ?, ?, 'pending')",
+    [guildId, action, JSON.stringify(payload), session.user.id],
+  );
+
+  return jsonResponse({
+    ok: true,
+    command_id: result.insertId,
+  });
+}
