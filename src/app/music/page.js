@@ -101,6 +101,10 @@ export default function MusicPage() {
   const [browseView, setBrowseView] = useState("home");
   const [selectedPlaylistName, setSelectedPlaylistName] = useState("");
   const [selectedPlaylistKeys, setSelectedPlaylistKeys] = useState([]);
+  const [selectedTrackKeys, setSelectedTrackKeys] = useState([]);
+  const [isAddToPlaylistsOpen, setIsAddToPlaylistsOpen] = useState(false);
+  const [pendingAddTrackKeys, setPendingAddTrackKeys] = useState([]);
+  const [checkedPlaylistIds, setCheckedPlaylistIds] = useState([]);
   const [queueTab, setQueueTab] = useState("queue");
   const [activeControlFlash, setActiveControlFlash] = useState("");
 
@@ -179,23 +183,25 @@ export default function MusicPage() {
     [selectedGuildId, servers],
   );
 
-  const sendAction = useCallback(
-    async (action, payload = {}) => {
-      if (!selectedGuildId || isSendingAction) return;
+  const runActionBatch = useCallback(
+    async (actions = []) => {
+      if (!selectedGuildId || isSendingAction || !actions.length) return;
 
       setIsSendingAction(true);
       try {
-        await fetch("/api/music", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            guild_id: selectedGuildId,
-            action,
-            ...payload,
-          }),
-        });
+        for (const item of actions) {
+          await fetch("/api/music", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              guild_id: selectedGuildId,
+              action: item.action,
+              ...(item.payload || {}),
+            }),
+          });
+        }
       } finally {
         setIsSendingAction(false);
       }
@@ -203,6 +209,13 @@ export default function MusicPage() {
       await fetchMusicState(selectedGuildId);
     },
     [fetchMusicState, isSendingAction, selectedGuildId],
+  );
+
+  const sendAction = useCallback(
+    async (action, payload = {}) => {
+      await runActionBatch([{ action, payload }]);
+    },
+    [runActionBatch],
   );
 
   const shuffleMode =
@@ -359,6 +372,9 @@ export default function MusicPage() {
       return;
     }
 
+    setSelectedPlaylistKeys([]);
+    setSelectedTrackKeys([]);
+
     if (scope === "user") {
       setSelectedUserPlaylistId(playlist.id);
     } else {
@@ -376,8 +392,15 @@ export default function MusicPage() {
     setNewPlaylistName("");
   };
 
-  const handleDeletePlaylist = (playlistId) => {
+  const handleDeletePlaylist = (playlistId, playlistName = "this playlist") => {
     if (!playlistId) return;
+
+    const confirmed = window.confirm(
+      `Delete playlist "${playlistName}"? This cannot be undone.`,
+    );
+    if (!confirmed) {
+      return;
+    }
 
     sendAction("delete_user_playlist", { playlist_id: playlistId });
     if (selectedUserPlaylistId === playlistId) {
@@ -411,6 +434,60 @@ export default function MusicPage() {
     [selectedUserPlaylistId, userPlaylists],
   );
 
+  const trackByKey = useMemo(() => {
+    const byKey = new Map();
+    for (const track of sortedLibraryTracks) {
+      const key = track.track_key || track.path || track.id;
+      if (!key) continue;
+      byKey.set(String(key), track);
+    }
+    return byKey;
+  }, [sortedLibraryTracks]);
+
+  const getSelectedTracksForAction = useCallback(
+    (clickedTrack) => {
+      const clickedKey = String(
+        clickedTrack?.track_key || clickedTrack?.path || clickedTrack?.id || "",
+      );
+
+      if (!clickedKey) {
+        return clickedTrack ? [clickedTrack] : [];
+      }
+
+      if (
+        selectedTrackKeys.length > 0 &&
+        selectedTrackKeys.includes(clickedKey)
+      ) {
+        const selectedTracks = selectedTrackKeys
+          .map((key) => trackByKey.get(String(key)))
+          .filter((track) => !!track?.track_key);
+        if (selectedTracks.length) {
+          return selectedTracks;
+        }
+      }
+
+      return clickedTrack?.track_key ? [clickedTrack] : [];
+    },
+    [selectedTrackKeys, trackByKey],
+  );
+
+  const handleTrackCardClick = (event, track) => {
+    const key = String(track?.track_key || track?.path || track?.id || "");
+    if (!key) return;
+
+    if (event?.ctrlKey) {
+      setSelectedTrackKeys((current) =>
+        current.includes(key)
+          ? current.filter((item) => item !== key)
+          : [...current, key],
+      );
+      return;
+    }
+
+    setSelectedTrackKeys([key]);
+    setSelectedPlaylistKeys([]);
+  };
+
   const visibleLibraryTracks = useMemo(() => {
     if (browseView !== "playlist" || !selectedPlaylistName) {
       return sortedLibraryTracks;
@@ -441,12 +518,72 @@ export default function MusicPage() {
   ]);
 
   const handlePriorityQueueAdd = (track) => {
-    sendAction("enqueue_priority", {
-      track_title: track.title,
-      track_path: track.path || null,
-    });
+    const tracksToQueue = getSelectedTracksForAction(track);
+    if (!tracksToQueue.length) return;
+
+    runActionBatch(
+      tracksToQueue.map((item) => ({
+        action: "enqueue_priority",
+        payload: {
+          track_title: item.title,
+          track_path: item.path || null,
+        },
+      })),
+    );
     setBrowseView("track");
-    setBrowseTitle(`Priority queued: ${track.title}`);
+    setBrowseTitle(
+      tracksToQueue.length > 1
+        ? `Priority queued: ${tracksToQueue.length} tracks`
+        : `Priority queued: ${track.title}`,
+    );
+  };
+
+  const handleOpenAddToPlaylists = (track) => {
+    const tracksToAdd = getSelectedTracksForAction(track);
+    if (!tracksToAdd.length) return;
+
+    const keys = tracksToAdd
+      .map((item) => String(item.track_key || ""))
+      .filter(Boolean);
+    if (!keys.length) return;
+
+    setPendingAddTrackKeys(keys);
+    setCheckedPlaylistIds([]);
+    setIsAddToPlaylistsOpen(true);
+  };
+
+  const handleConfirmAddToPlaylists = () => {
+    if (!pendingAddTrackKeys.length || !checkedPlaylistIds.length) {
+      setIsAddToPlaylistsOpen(false);
+      return;
+    }
+
+    const orderedTracks = pendingAddTrackKeys
+      .map((key) => trackByKey.get(String(key)))
+      .filter((track) => !!track?.track_key);
+
+    if (!orderedTracks.length) {
+      setIsAddToPlaylistsOpen(false);
+      return;
+    }
+
+    const actions = [];
+    for (const playlistId of checkedPlaylistIds) {
+      for (const track of orderedTracks) {
+        actions.push({
+          action: "add_track_to_user_playlist",
+          payload: {
+            playlist_id: playlistId,
+            track_key: track.track_key,
+          },
+        });
+      }
+    }
+
+    runActionBatch(actions);
+    setIsAddToPlaylistsOpen(false);
+    setPendingAddTrackKeys([]);
+    setCheckedPlaylistIds([]);
   };
 
   const handlePlaylistQueueAdd = (playlist, scope = "premade") => {
@@ -508,6 +645,7 @@ export default function MusicPage() {
     setBrowseTitle("Home");
     setSelectedPlaylistName("");
     setSelectedPlaylistKeys([]);
+    setSelectedTrackKeys([]);
     setSearchValue("");
   };
 
@@ -716,7 +854,9 @@ export default function MusicPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDeletePlaylist(playlist.id)}
+                      onClick={() =>
+                        handleDeletePlaylist(playlist.id, playlist.name)
+                      }
                       className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-red-300"
                       aria-label={`Delete ${playlist.name}`}
                       title={`Delete ${playlist.name}`}
@@ -816,7 +956,7 @@ export default function MusicPage() {
                                 <button
                                   type="button"
                                   onClick={() => handlePriorityQueueAdd(track)}
-                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100"
+                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 disabled:opacity-30"
                                   aria-label={`Add ${track.title} to priority queue`}
                                   title="Add to priority queue"
                                 >
@@ -841,6 +981,8 @@ export default function MusicPage() {
                     setBrowseView("library");
                     setBrowseTitle("All library tracks");
                     setSelectedPlaylistName("");
+                    setSelectedTrackKeys([]);
+                    setSelectedPlaylistKeys([]);
                   }}
                   className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
                   aria-label="Open full library"
@@ -984,7 +1126,7 @@ export default function MusicPage() {
                         <button
                           type="button"
                           onClick={() => handlePriorityQueueAdd(track)}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100"
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 "
                           aria-label={`Add ${track.title} to priority queue`}
                           title="Add to priority queue"
                         >
@@ -1209,7 +1351,7 @@ export default function MusicPage() {
                 {currentQueueItems.map((track, index) => {
                   const prefix =
                     track.isPriority && queueTab === "queue"
-                      ? `P${track.priorityIndex}`
+                      ? `${track.priorityIndex}`
                       : index + 1;
 
                   return (
@@ -1254,6 +1396,85 @@ export default function MusicPage() {
           </aside>
         </div>
       </section>
+
+      {isAddToPlaylistsOpen ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-50 bg-black/50"
+            onClick={() => {
+              setIsAddToPlaylistsOpen(false);
+              setPendingAddTrackKeys([]);
+              setCheckedPlaylistIds([]);
+            }}
+            aria-label="Close add-to-playlists dialog"
+          />
+
+          <div className="fixed left-1/2 top-1/2 z-[60] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-zinc-700 bg-zinc-950 p-4 shadow-2xl">
+            <p className="text-sm font-semibold text-zinc-100">
+              Add selected track(s) to playlists
+            </p>
+            <p className="mt-1 text-xs text-zinc-400">
+              Selected tracks: {pendingAddTrackKeys.length}
+            </p>
+
+            <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
+              {userPlaylists.map((playlist) => {
+                const isChecked = checkedPlaylistIds.includes(playlist.id);
+                return (
+                  <label
+                    key={`add-${playlist.id}`}
+                    className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(event) => {
+                        setCheckedPlaylistIds((current) =>
+                          event.target.checked
+                            ? [...current, playlist.id]
+                            : current.filter((id) => id !== playlist.id),
+                        );
+                      }}
+                    />
+                    <span className="truncate">{playlist.name}</span>
+                  </label>
+                );
+              })}
+
+              {!userPlaylists.length ? (
+                <p className="text-xs text-zinc-500">
+                  No private playlists available.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddToPlaylistsOpen(false);
+                  setPendingAddTrackKeys([]);
+                  setCheckedPlaylistIds([]);
+                }}
+                className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAddToPlaylists}
+                disabled={
+                  !checkedPlaylistIds.length || !pendingAddTrackKeys.length
+                }
+                className="rounded-md border border-green-600/70 bg-green-600/20 px-3 py-1.5 text-xs text-green-200 hover:bg-green-600/30 disabled:opacity-40"
+              >
+                Add to selected playlists
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
     </main>
   );
 }
