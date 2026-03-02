@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/music", label: "Music", placeholder: true },
+  { href: "/music", label: "Music" },
 ];
 
 export default function Navbar() {
@@ -56,11 +56,6 @@ export default function Navbar() {
                 }`}
               >
                 {item.label}
-                {item.placeholder ? (
-                  <span className="ml-1 text-[10px] align-middle text-zinc-300">
-                    (Soon)
-                  </span>
-                ) : null}
               </Link>
             );
           })}
@@ -126,11 +121,6 @@ export default function Navbar() {
               }`}
             >
               {item.label}
-              {item.placeholder ? (
-                <span className="ml-1 text-[10px] align-middle text-zinc-300">
-                  (Soon)
-                </span>
-              ) : null}
             </Link>
           );
         })}

@@ -1947,25 +1947,49 @@ export default function MusicPage() {
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs text-zinc-400">Library tracks</p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={sortBy}
-                      onChange={(event) => setSortBy(event.target.value)}
-                      className="rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-200 backdrop-blur-sm transition hover:border-zinc-500 hover:bg-zinc-900/75"
-                    >
-                      <option value="number">Sort: number</option>
-                      <option value="artist">Sort: artist</option>
-                      <option value="title">Sort: alphabetically</option>
-                      <option value="duration">Sort: duration</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={sortBy}
+                        onChange={(event) => setSortBy(event.target.value)}
+                        className="appearance-none rounded-xl border border-zinc-700/70 bg-zinc-900/45 py-1 pl-2 pr-7 text-xs text-zinc-100 backdrop-blur-md transition hover:border-zinc-500 hover:bg-zinc-900/65 focus:outline-none focus:border-zinc-500"
+                      >
+                        <option value="number" className="bg-zinc-900 text-zinc-100">
+                          Sort: number
+                        </option>
+                        <option value="artist" className="bg-zinc-900 text-zinc-100">
+                          Sort: artist
+                        </option>
+                        <option value="title" className="bg-zinc-900 text-zinc-100">
+                          Sort: alphabetically
+                        </option>
+                        <option value="duration" className="bg-zinc-900 text-zinc-100">
+                          Sort: duration
+                        </option>
+                      </select>
+                      <ChevronDown
+                        size={12}
+                        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
+                      />
+                    </div>
 
-                    <select
-                      value={sortDirection}
-                      onChange={(event) => setSortDirection(event.target.value)}
-                      className="rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-200 backdrop-blur-sm transition hover:border-zinc-500 hover:bg-zinc-900/75"
-                    >
-                      <option value="asc">Ascending</option>
-                      <option value="desc">Descending</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={sortDirection}
+                        onChange={(event) => setSortDirection(event.target.value)}
+                        className="appearance-none rounded-xl border border-zinc-700/70 bg-zinc-900/45 py-1 pl-2 pr-7 text-xs text-zinc-100 backdrop-blur-md transition hover:border-zinc-500 hover:bg-zinc-900/65 focus:outline-none focus:border-zinc-500"
+                      >
+                        <option value="asc" className="bg-zinc-900 text-zinc-100">
+                          Ascending
+                        </option>
+                        <option value="desc" className="bg-zinc-900 text-zinc-100">
+                          Descending
+                        </option>
+                      </select>
+                      <ChevronDown
+                        size={12}
+                        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
+                      />
+                    </div>
                   </div>
                 </div>
 
