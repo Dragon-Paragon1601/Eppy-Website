@@ -1039,7 +1039,7 @@ export default function MusicPage() {
                       }}
                       autoFocus
                       placeholder="Playlist name"
-                      className="w-full rounded-md border border-zinc-700 bg-zinc-950 py-1.5 pl-7 pr-2 text-xs text-zinc-100 placeholder:text-zinc-500 hover:border-cyan-200/40"
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500 hover:border-cyan-200/40"
                     />
 
                     <div className="mt-3 flex items-center justify-end gap-2">
