@@ -1126,7 +1126,7 @@ export default function MusicPage() {
                             disabled={
                               !playlist.is_pinned && pinnedPlaylistCount >= 8
                             }
-                            className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                            className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
                             aria-label={
                               playlist.is_pinned
                                 ? `Unpin ${playlist.name}`
@@ -1140,7 +1140,12 @@ export default function MusicPage() {
                                   : "Pin playlist"
                             }
                           >
-                            <Pin size={12} />
+                            <Pin
+                              size={12}
+                              fill={
+                                playlist.is_pinned ? "currentColor" : "none"
+                              }
+                            />
                           </button>
                         ) : null}
 
@@ -1251,7 +1256,7 @@ export default function MusicPage() {
                           disabled={
                             !playlist.is_pinned && pinnedPlaylistCount >= 8
                           }
-                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-zinc-700 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100"}`}
+                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100"}`}
                           aria-label={
                             playlist.is_pinned
                               ? `Unpin ${playlist.name}`
@@ -1265,7 +1270,10 @@ export default function MusicPage() {
                                 : "Pin playlist"
                           }
                         >
-                          <Pin size={12} />
+                          <Pin
+                            size={12}
+                            fill={playlist.is_pinned ? "currentColor" : "none"}
+                          />
                         </button>
 
                         <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -1434,12 +1442,39 @@ export default function MusicPage() {
                       key={item.id}
                       type="button"
                       onClick={() => handleOpenPlaylistFromHome(item)}
-                      className="relative rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-left hover:bg-zinc-900"
+                      className="group relative rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-left hover:bg-zinc-900"
                     >
-                      {item.scope === "user" && item.isPinned ? (
-                        <span className="absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border border-amber-500/70 bg-amber-500/15 text-amber-300">
-                          <Pin size={12} />
-                        </span>
+                      {item.scope === "user" ? (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleTogglePlaylistPin({
+                              id: item.playlistId,
+                              is_pinned: item.isPinned,
+                              name: item.title,
+                            });
+                          }}
+                          disabled={!item.isPinned && pinnedPlaylistCount >= 8}
+                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${item.isPinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                          aria-label={
+                            item.isPinned
+                              ? `Unpin ${item.title}`
+                              : `Pin ${item.title}`
+                          }
+                          title={
+                            item.isPinned
+                              ? "Pinned playlist"
+                              : pinnedPlaylistCount >= 8
+                                ? "Pin limit reached (8)"
+                                : "Pin playlist"
+                          }
+                        >
+                          <Pin
+                            size={12}
+                            fill={item.isPinned ? "currentColor" : "none"}
+                          />
+                        </button>
                       ) : null}
 
                       <p className="truncate text-sm text-zinc-100">
