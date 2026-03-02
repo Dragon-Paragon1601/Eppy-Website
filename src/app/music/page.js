@@ -1053,6 +1053,13 @@ export default function MusicPage() {
                               : shuffleMode === "shuffle"
                                 ? "smart"
                                 : "off";
+
+                          setMusicState((current) => ({
+                            ...current,
+                            shuffle_mode: nextShuffleMode,
+                            is_shuffle_enabled: nextShuffleMode !== "off",
+                          }));
+
                           triggerControlFlash("set_shuffle");
                           sendAction("set_shuffle", {
                             mode: nextShuffleMode,

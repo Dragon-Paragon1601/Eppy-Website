@@ -354,6 +354,12 @@ export async function POST(request) {
     } else {
       payload.mode = null;
     }
+
+    const normalizedMode = payload.mode || (payload.value ? "shuffle" : "off");
+    await promisePool.query(
+      "INSERT INTO guild_music_state (guild_id, shuffle_mode, is_shuffle_enabled) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE shuffle_mode = VALUES(shuffle_mode), is_shuffle_enabled = VALUES(is_shuffle_enabled)",
+      [guildId, normalizedMode, normalizedMode === "off" ? 0 : 1],
+    );
   }
 
   if (action === "enqueue_playlists") {
