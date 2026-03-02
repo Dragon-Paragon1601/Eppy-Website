@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
+  Check,
   ChevronDown,
   Library,
   Pause,
@@ -71,6 +72,7 @@ export default function MusicPage() {
   const [isAddToPlaylistsOpen, setIsAddToPlaylistsOpen] = useState(false);
   const [pendingAddTrackKeys, setPendingAddTrackKeys] = useState([]);
   const [checkedPlaylistIds, setCheckedPlaylistIds] = useState([]);
+  const [pendingDeletePlaylist, setPendingDeletePlaylist] = useState(null);
   const [queueTab, setQueueTab] = useState("queue");
   const [activeControlFlash, setActiveControlFlash] = useState("");
 
@@ -535,17 +537,25 @@ export default function MusicPage() {
   const handleDeletePlaylist = (playlistId, playlistName = "this playlist") => {
     if (!playlistId) return;
 
-    const confirmed = window.confirm(
-      `Delete playlist "${playlistName}"? This cannot be undone.`,
-    );
-    if (!confirmed) {
-      return;
-    }
+    setPendingDeletePlaylist({
+      id: playlistId,
+      name: playlistName,
+    });
+  };
+
+  const handleCancelDeletePlaylist = () => {
+    setPendingDeletePlaylist(null);
+  };
+
+  const handleConfirmDeletePlaylist = () => {
+    const playlistId = pendingDeletePlaylist?.id;
+    if (!playlistId) return;
 
     sendAction("delete_user_playlist", { playlist_id: playlistId });
     if (selectedUserPlaylistId === playlistId) {
       setSelectedUserPlaylistId(null);
     }
+    setPendingDeletePlaylist(null);
   };
 
   const handleTogglePlaylistPin = (playlist) => {
@@ -1518,7 +1528,7 @@ export default function MusicPage() {
                     <select
                       value={sortBy}
                       onChange={(event) => setSortBy(event.target.value)}
-                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 hover:border-zinc-500 hover:bg-zinc-900"
+                      className="rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-200 backdrop-blur-sm transition hover:border-zinc-500 hover:bg-zinc-900/75"
                     >
                       <option value="number">Sort: number</option>
                       <option value="artist">Sort: artist</option>
@@ -1529,7 +1539,7 @@ export default function MusicPage() {
                     <select
                       value={sortDirection}
                       onChange={(event) => setSortDirection(event.target.value)}
-                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 hover:border-zinc-500 hover:bg-zinc-900"
+                      className="rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-200 backdrop-blur-sm transition hover:border-zinc-500 hover:bg-zinc-900/75"
                     >
                       <option value="asc">Ascending</option>
                       <option value="desc">Descending</option>
@@ -1897,7 +1907,7 @@ export default function MusicPage() {
             aria-label="Close add-to-playlists dialog"
           />
 
-          <div className="fixed left-1/2 top-1/2 z-[60] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-zinc-700 bg-zinc-950 p-4 shadow-2xl">
+          <div className="fixed left-1/2 top-1/2 z-[60] w-full max-w-[22.5rem] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-zinc-700 bg-zinc-950 p-4 shadow-2xl">
             <p className="text-sm font-semibold text-zinc-100">
               Add selected track(s) to playlists
             </p>
@@ -1911,7 +1921,7 @@ export default function MusicPage() {
                 return (
                   <label
                     key={`add-${playlist.id}`}
-                    className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+                    className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 transition hover:bg-zinc-800"
                   >
                     <input
                       type="checkbox"
@@ -1923,7 +1933,14 @@ export default function MusicPage() {
                             : current.filter((id) => id !== playlist.id),
                         );
                       }}
+                      className="peer sr-only"
                     />
+                    <span className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-zinc-600 bg-zinc-950 transition peer-checked:border-green-500 peer-checked:bg-green-500/20">
+                      <Check
+                        size={12}
+                        className="absolute -right-1 -top-1 text-green-300 opacity-0 transition peer-checked:opacity-100"
+                      />
+                    </span>
                     <span className="truncate">{playlist.name}</span>
                   </label>
                 );
@@ -1944,7 +1961,7 @@ export default function MusicPage() {
                   setPendingAddTrackKeys([]);
                   setCheckedPlaylistIds([]);
                 }}
-                className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-800"
+                className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-red-300"
               >
                 Cancel
               </button>
@@ -1954,9 +1971,44 @@ export default function MusicPage() {
                 disabled={
                   !checkedPlaylistIds.length || !pendingAddTrackKeys.length
                 }
-                className="rounded-md border border-green-600/70 bg-green-600/20 px-3 py-1.5 text-xs text-green-200 hover:bg-green-600/30 disabled:opacity-40"
+                className="rounded-md border border-green-700/70 bg-green-700/10 px-3 py-1.5 text-xs text-green-300 hover:bg-green-600/30 disabled:opacity-40"
               >
                 Add to selected playlists
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {pendingDeletePlaylist ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-50 bg-black/50"
+            onClick={handleCancelDeletePlaylist}
+            aria-label="Close delete playlist dialog"
+          />
+
+          <div className="fixed left-1/2 top-1/2 z-[60] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-zinc-700 bg-zinc-950 p-4 shadow-2xl">
+            <p className="text-sm font-semibold text-zinc-100">
+              Are you sure you want to delete playlist {" "}
+              <span className="text-zinc-200">“{pendingDeletePlaylist.name}”</span>?
+            </p>
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancelDeletePlaylist}
+                className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-red-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeletePlaylist}
+                className="rounded-md border border-red-700/60 bg-red-700/10 px-3 py-1.5 text-xs text-red-300 hover:bg-red-600/25 hover:text-red-200"
+              >
+                Delete
               </button>
             </div>
           </div>
