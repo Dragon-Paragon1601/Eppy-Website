@@ -18,6 +18,8 @@ const ALLOWED_ACTIONS = new Set([
   "set_shuffle",
   "set_loop",
   "enqueue_priority",
+  "enqueue_playlist",
+  "enqueue_playlists",
   "remove_priority",
   "remove_queue",
   "clear_queue",
@@ -307,7 +309,59 @@ export async function POST(request) {
     track_key: body?.track_key || null,
     playlist_id: body?.playlist_id || null,
     playlist_name: body?.playlist_name || null,
+    playlist_scope: body?.playlist_scope || null,
   };
+
+  if (action === "enqueue_playlist") {
+    const playlistId = toPositiveInt(payload.playlist_id);
+    const playlistName = truncate(payload.playlist_name, 255);
+
+    if (!playlistId && !playlistName) {
+      return jsonResponse(
+        { error: "playlist_id or playlist_name is required" },
+        400,
+      );
+    }
+
+    payload.playlist_id = playlistId;
+    payload.playlist_name = playlistName || null;
+    payload.playlist_scope = String(payload.playlist_scope || "").slice(0, 16);
+  }
+
+  if (action === "enqueue_playlists") {
+    const rawPlaylists = Array.isArray(body?.playlists) ? body.playlists : [];
+    if (!rawPlaylists.length) {
+      return jsonResponse({ error: "playlists are required" }, 400);
+    }
+
+    const playlists = rawPlaylists
+      .slice(0, 50)
+      .map((item) => {
+        const playlistId = toPositiveInt(item?.playlist_id);
+        const playlistName = truncate(item?.playlist_name, 255);
+        const playlistScope = String(item?.playlist_scope || "").slice(0, 16);
+
+        if (!playlistId && !playlistName) {
+          return null;
+        }
+
+        return {
+          playlist_id: playlistId,
+          playlist_name: playlistName || null,
+          playlist_scope: playlistScope,
+        };
+      })
+      .filter(Boolean);
+
+    if (!playlists.length) {
+      return jsonResponse(
+        { error: "Each playlist needs playlist_id or playlist_name" },
+        400,
+      );
+    }
+
+    payload.playlists = playlists;
+  }
 
   if (action === "create_user_playlist") {
     const playlistName = truncate(payload.playlist_name, 255);

@@ -98,6 +98,7 @@ export default function MusicPage() {
   const [browseTitle, setBrowseTitle] = useState("Home");
   const [browseView, setBrowseView] = useState("home");
   const [selectedPlaylistName, setSelectedPlaylistName] = useState("");
+  const [selectedPlaylistKeys, setSelectedPlaylistKeys] = useState([]);
   const [queueTab, setQueueTab] = useState("queue");
   const [activeControlFlash, setActiveControlFlash] = useState("");
 
@@ -320,6 +321,44 @@ export default function MusicPage() {
     setSelectedPlaylistName(type === "playlist" ? playlistName : "");
   };
 
+  const toPlaylistKey = (playlist, scope = "premade") => {
+    if (!playlist) return "";
+    return scope === "user"
+      ? `user:${playlist.id}`
+      : `premade:${playlist.name}`;
+  };
+
+  const buildPlaylistPayload = (playlist, scope = "premade") => ({
+    playlist_scope: scope,
+    playlist_id: scope === "user" ? playlist.id : null,
+    playlist_name: playlist.name,
+  });
+
+  const handlePlaylistCardClick = (event, playlist, scope = "premade") => {
+    if (!playlist) return;
+
+    if (event?.ctrlKey) {
+      const key = toPlaylistKey(playlist, scope);
+      if (scope === "user") {
+        setSelectedUserPlaylistId(null);
+      }
+      setSelectedPlaylistKeys((current) =>
+        current.includes(key)
+          ? current.filter((item) => item !== key)
+          : [...current, key],
+      );
+      return;
+    }
+
+    if (scope === "user") {
+      setSelectedUserPlaylistId(playlist.id);
+    } else {
+      setSelectedUserPlaylistId(null);
+    }
+
+    handlePlaylistBrowse(playlist.name, "playlist");
+  };
+
   const handleCreatePlaylist = () => {
     const safeName = newPlaylistName.trim();
     if (!safeName.length) return;
@@ -401,6 +440,49 @@ export default function MusicPage() {
     setBrowseTitle(`Priority queued: ${track.title}`);
   };
 
+  const handlePlaylistQueueAdd = (playlist, scope = "premade") => {
+    if (!playlist) return;
+
+    const selectedPayloads = selectedPlaylistKeys
+      .map((key) => {
+        const [keyScope, keyValue] = String(key).split(":");
+
+        if (keyScope === "user") {
+          const userPlaylist = userPlaylists.find(
+            (item) => String(item.id) === String(keyValue),
+          );
+          return userPlaylist
+            ? buildPlaylistPayload(userPlaylist, "user")
+            : null;
+        }
+
+        if (keyScope === "premade") {
+          const premadePlaylist = premadePlaylists.find(
+            (item) => item.name === keyValue,
+          );
+          return premadePlaylist
+            ? buildPlaylistPayload(premadePlaylist, "premade")
+            : null;
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+
+    const clickedKey = toPlaylistKey(playlist, scope);
+    const useSelected =
+      selectedPayloads.length > 0 && selectedPlaylistKeys.includes(clickedKey);
+
+    if (useSelected) {
+      sendAction("enqueue_playlists", {
+        playlists: selectedPayloads,
+      });
+      return;
+    }
+
+    sendAction("enqueue_playlist", buildPlaylistPayload(playlist, scope));
+  };
+
   const handleQueueRemove = (track) => {
     sendAction(track.isPriority ? "remove_priority" : "remove_queue", {
       track_title: track.title,
@@ -416,6 +498,7 @@ export default function MusicPage() {
     setBrowseView("home");
     setBrowseTitle("Home");
     setSelectedPlaylistName("");
+    setSelectedPlaylistKeys([]);
     setSearchValue("");
   };
 
@@ -551,14 +634,13 @@ export default function MusicPage() {
               {premadePlaylists.map((playlist) => (
                 <div
                   key={playlist.id}
-                  className="group relative rounded-md border border-zinc-700 bg-zinc-900 px-2 py-2 hover:bg-zinc-800"
+                  className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, "premade")) ? "border-green-500/70 bg-green-500/10" : "border-zinc-700 bg-zinc-900"}`}
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedUserPlaylistId(null);
-                      handlePlaylistBrowse(playlist.name, "playlist");
-                    }}
+                    onClick={(event) =>
+                      handlePlaylistCardClick(event, playlist, "premade")
+                    }
                     className="w-full pr-9 text-left"
                   >
                     <p className="truncate text-sm text-zinc-100">
@@ -572,8 +654,7 @@ export default function MusicPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedUserPlaylistId(null);
-                      handlePlaylistBrowse(playlist.name, "playlist");
+                      handlePlaylistQueueAdd(playlist, "premade");
                     }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100"
                     aria-label={`Play ${playlist.name}`}
@@ -590,14 +671,13 @@ export default function MusicPage() {
               {userPlaylists.map((playlist) => (
                 <div
                   key={playlist.id}
-                  className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedUserPlaylistId === playlist.id ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
+                  className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, "user")) ? "border-green-500/70 bg-green-500/10" : selectedUserPlaylistId === playlist.id ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedUserPlaylistId(playlist.id);
-                      handlePlaylistBrowse(playlist.name, "playlist");
-                    }}
+                    onClick={(event) =>
+                      handlePlaylistCardClick(event, playlist, "user")
+                    }
                     className="w-full pr-9 text-left"
                   >
                     <p className="truncate text-sm text-zinc-100">
@@ -611,9 +691,7 @@ export default function MusicPage() {
                   <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                     <button
                       type="button"
-                      onClick={() =>
-                        handlePlaylistBrowse(playlist.name, "playlist")
-                      }
+                      onClick={() => handlePlaylistQueueAdd(playlist, "user")}
                       className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100"
                       aria-label={`Play ${playlist.name}`}
                       title={`Play ${playlist.name}`}
