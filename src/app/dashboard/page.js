@@ -77,6 +77,7 @@ export default function Dashboard() {
   const [rolesByGuild, setRolesByGuild] = useState({});
   const [settingsByGuild, setSettingsByGuild] = useState({});
   const [selectedGuildId, setSelectedGuildId] = useState("");
+  const [isServerListOpen, setIsServerListOpen] = useState(true);
   const [form, setForm] = useState(EMPTY_SETTINGS);
   const [saveState, setSaveState] = useState({ type: "", message: "" });
 
@@ -332,11 +333,28 @@ export default function Dashboard() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             <div className="bg-zinc-900/80 border border-zinc-700 rounded-xl p-4 lg:col-span-1">
-              <p className="block mb-2 font-semibold">Select server</p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="font-semibold">Select server</p>
+                {servers.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsServerListOpen((prev) => !prev)}
+                    className="px-2 py-1 rounded-md border border-zinc-700 bg-zinc-950 text-xs text-zinc-200 hover:bg-zinc-900"
+                  >
+                    {isServerListOpen ? "Hide list" : "Show list"}
+                  </button>
+                ) : null}
+              </div>
 
               {servers.length === 0 ? (
                 <div className="w-full p-3 rounded-md bg-zinc-950 border border-zinc-700 text-sm text-zinc-400">
                   No shared servers with bot
+                </div>
+              ) : !isServerListOpen ? (
+                <div className="w-full p-3 rounded-md bg-zinc-950 border border-zinc-700 text-sm text-zinc-200">
+                  {selectedGuild
+                    ? `Selected: ${selectedGuild.guild_name}`
+                    : "No server selected"}
                 </div>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
