@@ -96,6 +96,7 @@ export default function MusicPage() {
   const [browseTitle, setBrowseTitle] = useState("Home");
   const [browseView, setBrowseView] = useState("home");
   const [queueTab, setQueueTab] = useState("queue");
+  const [activeControlFlash, setActiveControlFlash] = useState("");
 
   useEffect(() => {
     if (!session) return;
@@ -379,6 +380,20 @@ export default function MusicPage() {
       setBrowseView("search");
       setBrowseTitle("Search results");
     }
+  };
+
+  const triggerControlFlash = (controlKey) => {
+    setActiveControlFlash(controlKey);
+    setTimeout(() => {
+      setActiveControlFlash((current) =>
+        current === controlKey ? "" : current,
+      );
+    }, 180);
+  };
+
+  const getControlClassName = (controlKey, sizeClass = "h-8 w-8") => {
+    const isFlashing = activeControlFlash === controlKey;
+    return `flex ${sizeClass} items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 transition-all duration-150 hover:bg-zinc-800 active:scale-95 ${isFlashing ? "bg-blue-400/30 border-blue-400/70" : ""}`;
   };
 
   return (
@@ -833,17 +848,23 @@ export default function MusicPage() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => sendAction("previous")}
+                        onClick={() => {
+                          triggerControlFlash("previous");
+                          sendAction("previous");
+                        }}
                         disabled={!currentState.showControls}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 disabled:opacity-40"
+                        className={`${getControlClassName("previous")} disabled:opacity-40`}
                       >
                         <SkipBack size={14} />
                       </button>
                       <button
                         type="button"
-                        onClick={() => sendAction("toggle_pause")}
+                        onClick={() => {
+                          triggerControlFlash("toggle_pause");
+                          sendAction("toggle_pause");
+                        }}
                         disabled={!currentState.showControls}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 disabled:opacity-40"
+                        className={`${getControlClassName("toggle_pause")} disabled:opacity-40`}
                       >
                         {currentState.state === "Playing" ? (
                           <Pause size={14} />
@@ -853,9 +874,12 @@ export default function MusicPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => sendAction("next")}
+                        onClick={() => {
+                          triggerControlFlash("next");
+                          sendAction("next");
+                        }}
                         disabled={!currentState.showControls}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 disabled:opacity-40"
+                        className={`${getControlClassName("next")} disabled:opacity-40`}
                       >
                         <SkipForward size={14} />
                       </button>
@@ -864,12 +888,13 @@ export default function MusicPage() {
                     <div className="flex items-center gap-3 pr-1">
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          triggerControlFlash("set_shuffle");
                           sendAction("set_shuffle", {
                             value: !shuffleEnabled,
-                          })
-                        }
-                        className={`flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 ${shuffleEnabled ? ACCENT_CLASS : "text-zinc-100"}`}
+                          });
+                        }}
+                        className={`${getControlClassName("set_shuffle", "h-7 w-7")} ${shuffleEnabled ? ACCENT_CLASS : "text-zinc-100"}`}
                         title="Shuffle"
                         disabled={isSendingAction}
                       >
@@ -877,12 +902,13 @@ export default function MusicPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          triggerControlFlash("set_loop");
                           sendAction("set_loop", {
                             value: !loopEnabled,
-                          })
-                        }
-                        className={`flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 ${loopEnabled ? ACCENT_CLASS : "text-zinc-100"}`}
+                          });
+                        }}
+                        className={`${getControlClassName("set_loop", "h-7 w-7")} ${loopEnabled ? ACCENT_CLASS : "text-zinc-100"}`}
                         title="Loop"
                         disabled={isSendingAction}
                       >
