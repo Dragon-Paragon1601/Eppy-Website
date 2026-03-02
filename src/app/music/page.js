@@ -849,6 +849,16 @@ export default function MusicPage() {
     });
   };
 
+  const handleQueueJump = (track) => {
+    if (!track) return;
+
+    sendAction("jump_to_queue_track", {
+      track_title: track.title,
+      track_path: track.path || null,
+      is_priority: track.isPriority === true,
+    });
+  };
+
   const handleClearCurrentQueue = () => {
     sendAction("clear_queue");
   };
@@ -1645,7 +1655,7 @@ export default function MusicPage() {
                           sendAction("previous");
                         }}
                         disabled={!currentState.showControls}
-                        className={`${getControlClassName("previous")} disabled:opacity-40`}
+                        className={`${getControlClassName("previous")} hover:text-blue-300 disabled:opacity-40`}
                       >
                         <SkipBack size={14} />
                       </button>
@@ -1663,7 +1673,7 @@ export default function MusicPage() {
                           !currentState.showControls &&
                           !currentState.canStartFromDashboard
                         }
-                        className={`${getControlClassName("toggle_pause")} disabled:opacity-40`}
+                        className={`${getControlClassName("toggle_pause")} hover:text-blue-300 disabled:opacity-40`}
                       >
                         {currentState.state === "Playing" ? (
                           <Pause size={14} />
@@ -1678,7 +1688,7 @@ export default function MusicPage() {
                           sendAction("next");
                         }}
                         disabled={!currentState.showControls}
-                        className={`${getControlClassName("next")} disabled:opacity-40`}
+                        className={`${getControlClassName("next")} hover:text-blue-300 disabled:opacity-40`}
                       >
                         <SkipForward size={14} />
                       </button>
@@ -1821,7 +1831,7 @@ export default function MusicPage() {
                       key={`${track.id}-${index}-${queueTab}`}
                       className={`group rounded-md border px-2 py-2 ${track.isPriority && queueTab === "queue" ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-sm text-zinc-100">
                             {track.title}
@@ -1834,15 +1844,30 @@ export default function MusicPage() {
                           </p>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleQueueRemove(track)}
-                          className="mt-0.5 text-zinc-500 opacity-0 transition group-hover:opacity-100 hover:text-red-400"
-                          title="Remove from queue"
-                          aria-label="Remove from queue"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        <div className="flex h-10 w-7 flex-col items-center justify-between">
+                          {queueTab === "queue" ? (
+                            <button
+                              type="button"
+                              onClick={() => handleQueueJump(track)}
+                              className="flex h-4 w-7 items-center justify-center text-zinc-500 opacity-0 transition group-hover:opacity-100 hover:text-blue-300"
+                              title="Jump to this track"
+                              aria-label="Jump to this track"
+                            >
+                              <Play size={12} />
+                            </button>
+                          ) : (
+                            <span className="h-4 w-7" aria-hidden="true" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleQueueRemove(track)}
+                            className="flex h-4 w-7 items-center justify-center text-zinc-500 opacity-0 transition group-hover:opacity-100 hover:text-red-400"
+                            title="Remove from queue"
+                            aria-label="Remove from queue"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

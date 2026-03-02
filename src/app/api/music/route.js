@@ -20,6 +20,7 @@ const ALLOWED_ACTIONS = new Set([
   "enqueue_priority",
   "enqueue_playlist",
   "enqueue_playlists",
+  "jump_to_queue_track",
   "remove_priority",
   "remove_queue",
   "clear_queue",
@@ -386,6 +387,7 @@ export async function POST(request) {
   const payload = {
     mode: body?.mode || null,
     value: body?.value,
+    is_priority: body?.is_priority,
     track_title: body?.track_title || null,
     track_path: body?.track_path || null,
     track_key: body?.track_key || null,
