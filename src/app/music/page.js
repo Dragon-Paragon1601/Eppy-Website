@@ -173,8 +173,7 @@ export default function MusicPage() {
 
   const sendAction = useCallback(
     async (action, payload = {}) => {
-      if (!selectedGuildId || isSendingAction || !selectedGuild?.can_edit)
-        return;
+      if (!selectedGuildId || isSendingAction) return;
 
       setIsSendingAction(true);
       try {
@@ -195,12 +194,7 @@ export default function MusicPage() {
 
       await fetchMusicState(selectedGuildId);
     },
-    [
-      fetchMusicState,
-      isSendingAction,
-      selectedGuild?.can_edit,
-      selectedGuildId,
-    ],
+    [fetchMusicState, isSendingAction, selectedGuildId],
   );
 
   const shuffleEnabled = musicState.is_shuffle_enabled === true;
@@ -281,8 +275,7 @@ export default function MusicPage() {
   const currentState = useMemo(() => {
     const playbackState = musicState.playback_state || "idle";
     const showControls =
-      !!selectedGuild?.can_edit &&
-      (playbackState === "playing" || playbackState === "paused");
+      playbackState === "playing" || playbackState === "paused";
 
     return {
       state:
@@ -301,7 +294,7 @@ export default function MusicPage() {
             : "Join a voice channel and queue a track.",
       showControls,
     };
-  }, [musicState, selectedGuild?.can_edit]);
+  }, [musicState]);
 
   const handleGuildSelect = (guildId) => {
     setSelectedGuildId(guildId);
@@ -397,17 +390,17 @@ export default function MusicPage() {
         </p>
       </div>
 
-      <section className="relative mb-4 max-w-md">
+      <section className="relative z-50 mb-4 max-w-md">
         {isServerPickerOpen ? (
           <button
             type="button"
             aria-label="Close server picker"
             onClick={() => setIsServerPickerOpen(false)}
-            className="fixed inset-0 z-20 bg-black/20"
+            className="fixed inset-0 z-40 bg-black/20"
           />
         ) : null}
 
-        <div className="relative z-30">
+        <div className="relative z-50">
           <button
             type="button"
             onClick={() => setIsServerPickerOpen((prev) => !prev)}
@@ -430,7 +423,7 @@ export default function MusicPage() {
           </button>
 
           {isServerPickerOpen ? (
-            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 rounded-lg border border-zinc-700 bg-zinc-950/95 p-2 shadow-lg">
+            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[60] rounded-lg border border-zinc-700 bg-zinc-950/95 p-2 shadow-lg">
               <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                 {servers
                   .filter((server) => server.guild_id !== selectedGuildId)
@@ -878,7 +871,7 @@ export default function MusicPage() {
                         }
                         className={`flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 ${shuffleEnabled ? ACCENT_CLASS : "text-zinc-100"}`}
                         title="Shuffle"
-                        disabled={!selectedGuild?.can_edit || isSendingAction}
+                        disabled={isSendingAction}
                       >
                         <Shuffle size={14} />
                       </button>
@@ -891,7 +884,7 @@ export default function MusicPage() {
                         }
                         className={`flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 ${loopEnabled ? ACCENT_CLASS : "text-zinc-100"}`}
                         title="Loop"
-                        disabled={!selectedGuild?.can_edit || isSendingAction}
+                        disabled={isSendingAction}
                       >
                         <Repeat size={14} />
                       </button>

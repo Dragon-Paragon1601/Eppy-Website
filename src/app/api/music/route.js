@@ -10,7 +10,6 @@ const pool = mysql.createPool({
 });
 
 const promisePool = pool.promise();
-const MANAGE_GUILD_LEVEL = 6;
 const ALLOWED_ACTIONS = new Set([
   "toggle_pause",
   "next",
@@ -37,7 +36,7 @@ const TABLE_DEFINITIONS = [
   },
   {
     table: "music_library_tracks",
-    sql: "CREATE TABLE IF NOT EXISTS music_library_tracks (track_key VARCHAR(512) NOT NULL PRIMARY KEY, track_path TEXT NOT NULL, playlist_name VARCHAR(255) NULL, title VARCHAR(255) NOT NULL, artist VARCHAR(255) NULL, source_type ENUM('root','folder') NOT NULL DEFAULT 'folder', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, KEY idx_music_library_playlist (playlist_name), KEY idx_music_library_title (title)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    sql: "CREATE TABLE IF NOT EXISTS music_library_tracks (track_key VARCHAR(512) NOT NULL PRIMARY KEY, track_path TEXT NOT NULL, playlist_name VARCHAR(255) NULL, title VARCHAR(255) NOT NULL, artist VARCHAR(255) NULL, duration_seconds INT NOT NULL DEFAULT 0, duration_label VARCHAR(16) NOT NULL DEFAULT '--:--', source_type ENUM('root','folder') NOT NULL DEFAULT 'folder', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, KEY idx_music_library_playlist (playlist_name), KEY idx_music_library_title (title)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
   },
   {
     table: "guild_music_playlists",
@@ -88,23 +87,44 @@ function parseJsonArray(input) {
 }
 
 function truncate(value, maxLength) {
-  return String(value || "").trim().slice(0, maxLength);
+  return String(value || "")
+    .trim()
+    .slice(0, maxLength);
 }
 
 async function ensureMusicTables() {
   for (const definition of TABLE_DEFINITIONS) {
     await promisePool.query(definition.sql);
   }
+
+  try {
+    await promisePool.query(
+      "ALTER TABLE music_library_tracks ADD COLUMN duration_seconds INT NOT NULL DEFAULT 0",
+    );
+  } catch (error) {
+    if (!String(error?.message || "").includes("Duplicate column")) {
+      throw error;
+    }
+  }
+
+  try {
+    await promisePool.query(
+      "ALTER TABLE music_library_tracks ADD COLUMN duration_label VARCHAR(16) NOT NULL DEFAULT '--:--'",
+    );
+  } catch (error) {
+    if (!String(error?.message || "").includes("Duplicate column")) {
+      throw error;
+    }
+  }
 }
 
-async function canEditGuild(userId, guildId) {
+async function canAccessGuild(userId, guildId) {
   const [rows] = await promisePool.query(
-    "SELECT admin_prem FROM users WHERE user_id = ? AND guild_id = ? LIMIT 1",
+    "SELECT 1 AS has_access FROM users WHERE user_id = ? AND guild_id = ? LIMIT 1",
     [userId, guildId],
   );
 
-  const row = rows?.[0];
-  return Number(row?.admin_prem || 0) >= MANAGE_GUILD_LEVEL;
+  return rows.length > 0;
 }
 
 export async function GET(request) {
@@ -120,9 +140,9 @@ export async function GET(request) {
 
   await ensureMusicTables();
 
-  const canEdit = await canEditGuild(session.user.id, guildId);
-  if (!canEdit) {
-    return jsonResponse({ error: "No permission to control this guild" }, 403);
+  const canAccess = await canAccessGuild(session.user.id, guildId);
+  if (!canAccess) {
+    return jsonResponse({ error: "No access to this guild" }, 403);
   }
 
   const [rows] = await promisePool.query(
@@ -148,7 +168,7 @@ export async function GET(request) {
   };
 
   const [libraryRows] = await promisePool.query(
-    "SELECT track_key, track_path, playlist_name, title, artist FROM music_library_tracks ORDER BY COALESCE(playlist_name, ''), title ASC",
+    "SELECT track_key, track_path, playlist_name, title, artist, duration_seconds, duration_label FROM music_library_tracks ORDER BY COALESCE(playlist_name, ''), title ASC",
   );
 
   const libraryTracks = libraryRows.map((track) => ({
@@ -156,6 +176,8 @@ export async function GET(request) {
     path: track.track_path,
     title: track.title,
     artist: track.artist || "",
+    duration_seconds: Number(track.duration_seconds || 0),
+    duration: track.duration_label || "--:--",
     playlist_name: track.playlist_name || null,
   }));
 
@@ -247,9 +269,9 @@ export async function POST(request) {
 
   await ensureMusicTables();
 
-  const canEdit = await canEditGuild(session.user.id, guildId);
-  if (!canEdit) {
-    return jsonResponse({ error: "No permission to control this guild" }, 403);
+  const canAccess = await canAccessGuild(session.user.id, guildId);
+  if (!canAccess) {
+    return jsonResponse({ error: "No access to this guild" }, 403);
   }
 
   const payload = {
@@ -274,8 +296,15 @@ export async function POST(request) {
       );
       return jsonResponse({ ok: true, playlist_id: result.insertId });
     } catch (error) {
-      if (String(error?.message || "").toLowerCase().includes("duplicate")) {
-        return jsonResponse({ error: "Playlist with this name already exists" }, 409);
+      if (
+        String(error?.message || "")
+          .toLowerCase()
+          .includes("duplicate")
+      ) {
+        return jsonResponse(
+          { error: "Playlist with this name already exists" },
+          409,
+        );
       }
       return jsonResponse({ error: "Could not create playlist" }, 500);
     }
