@@ -12,41 +12,58 @@ const EMPTY_SETTINGS = {
   ban_notification_channel_id: "",
   kick_notification_channel_id: "",
   notification_role_id: "",
+  update_notification_role_id: "",
+  notifications_enabled: true,
+  queue_notifications_enabled: true,
+  welcome_notifications_enabled: false,
+  ban_notifications_enabled: true,
+  kick_notifications_enabled: true,
+  notification_channel_enabled: false,
+  update_notification_channel_enabled: false,
 };
 
-const PRIMARY_CHANNEL_FIELDS = [
+const NOTIFICATION_FIELDS = [
   {
     id: "kick-notification-channel",
     key: "kick_notification_channel_id",
     label: "Kick",
+    toggleKey: "kick_notifications_enabled",
+    requiresChannel: false,
   },
   {
     id: "ban-notification-channel",
     key: "ban_notification_channel_id",
     label: "Ban",
+    toggleKey: "ban_notifications_enabled",
+    requiresChannel: false,
   },
   {
     id: "welcome-channel",
     key: "welcome_channel_id",
     label: "Welcome",
+    toggleKey: "welcome_notifications_enabled",
+    requiresChannel: true,
   },
   {
     id: "queue-channel",
     key: "queue_channel_id",
     label: "Queue",
+    toggleKey: "queue_notifications_enabled",
+    requiresChannel: false,
   },
-];
-
-const EVENT_CHANNEL_FIELDS = [
   {
     id: "notification-channel",
     key: "notification_channel_id",
     label: "Eppy Notifications",
+    toggleKey: "notification_channel_enabled",
+    requiresChannel: true,
   },
   {
     id: "update-notification-channel",
     key: "update_notification_channel_id",
     label: "Eppy Updates",
+    toggleKey: "update_notification_channel_enabled",
+    requiresChannel: true,
   },
 ];
 
@@ -57,6 +74,7 @@ export default function Dashboard() {
   const [isSaving, setIsSaving] = useState(false);
   const [servers, setServers] = useState([]);
   const [channelsByGuild, setChannelsByGuild] = useState({});
+  const [rolesByGuild, setRolesByGuild] = useState({});
   const [settingsByGuild, setSettingsByGuild] = useState({});
   const [selectedGuildId, setSelectedGuildId] = useState("");
   const [form, setForm] = useState(EMPTY_SETTINGS);
@@ -74,6 +92,7 @@ export default function Dashboard() {
       .then((data) => {
         const nextServers = data?.servers || [];
         const nextChannels = {};
+        const nextRoles = {};
         const nextSettings = {};
 
         (data?.channels || []).forEach((channel) => {
@@ -81,6 +100,13 @@ export default function Dashboard() {
             nextChannels[channel.guild_id] = [];
           }
           nextChannels[channel.guild_id].push(channel);
+        });
+
+        (data?.roles || []).forEach((role) => {
+          if (!nextRoles[role.guild_id]) {
+            nextRoles[role.guild_id] = [];
+          }
+          nextRoles[role.guild_id].push(role);
         });
 
         (data?.guildSettings || []).forEach((guildSetting) => {
@@ -95,11 +121,27 @@ export default function Dashboard() {
             kick_notification_channel_id:
               guildSetting.kick_notification_channel_id || "",
             notification_role_id: guildSetting.notification_role_id || "",
+            update_notification_role_id:
+              guildSetting.update_notification_role_id || "",
+            notifications_enabled: guildSetting.notifications_enabled !== false,
+            queue_notifications_enabled:
+              guildSetting.queue_notifications_enabled !== false,
+            welcome_notifications_enabled:
+              guildSetting.welcome_notifications_enabled !== false,
+            ban_notifications_enabled:
+              guildSetting.ban_notifications_enabled !== false,
+            kick_notifications_enabled:
+              guildSetting.kick_notifications_enabled !== false,
+            notification_channel_enabled:
+              guildSetting.notification_channel_enabled !== false,
+            update_notification_channel_enabled:
+              guildSetting.update_notification_channel_enabled !== false,
           };
         });
 
         setServers(nextServers);
         setChannelsByGuild(nextChannels);
+        setRolesByGuild(nextRoles);
         setSettingsByGuild(nextSettings);
 
         if (nextServers.length > 0) {
@@ -133,6 +175,7 @@ export default function Dashboard() {
   );
 
   const selectedGuildChannels = channelsByGuild[selectedGuildId] || [];
+  const selectedGuildRoles = rolesByGuild[selectedGuildId] || [];
 
   const savedSettings = settingsByGuild[selectedGuildId] || EMPTY_SETTINGS;
 
@@ -184,6 +227,15 @@ export default function Dashboard() {
           kick_notification_channel_id:
             form.kick_notification_channel_id || null,
           notification_role_id: form.notification_role_id || null,
+          update_notification_role_id: form.update_notification_role_id || null,
+          notifications_enabled: form.notifications_enabled,
+          queue_notifications_enabled: form.queue_notifications_enabled,
+          welcome_notifications_enabled: form.welcome_notifications_enabled,
+          ban_notifications_enabled: form.ban_notifications_enabled,
+          kick_notifications_enabled: form.kick_notifications_enabled,
+          notification_channel_enabled: form.notification_channel_enabled,
+          update_notification_channel_enabled:
+            form.update_notification_channel_enabled,
         }),
       });
 
@@ -207,6 +259,19 @@ export default function Dashboard() {
         kick_notification_channel_id:
           payload.kick_notification_channel_id || "",
         notification_role_id: payload.notification_role_id || "",
+        update_notification_role_id: payload.update_notification_role_id || "",
+        notifications_enabled: payload.notifications_enabled !== false,
+        queue_notifications_enabled:
+          payload.queue_notifications_enabled !== false,
+        welcome_notifications_enabled:
+          payload.welcome_notifications_enabled !== false,
+        ban_notifications_enabled: payload.ban_notifications_enabled !== false,
+        kick_notifications_enabled:
+          payload.kick_notifications_enabled !== false,
+        notification_channel_enabled:
+          payload.notification_channel_enabled !== false,
+        update_notification_channel_enabled:
+          payload.update_notification_channel_enabled !== false,
       };
 
       setSettingsByGuild((prev) => ({
@@ -248,7 +313,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold">Server Dashboard</h1>
           <p className="text-gray-300 mt-1 text-sm">
-            Configure channels and notification role for the selected server.
+            Configure channels and notification roles for the selected server.
           </p>
         </div>
         <div className="bg-zinc-900/80 border border-zinc-700 rounded-lg px-4 py-2 text-sm">
@@ -267,30 +332,71 @@ export default function Dashboard() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             <div className="bg-zinc-900/80 border border-zinc-700 rounded-xl p-4 lg:col-span-1">
-              <label
-                htmlFor="guild-select"
-                className="block mb-2 font-semibold"
-              >
-                Select server
-              </label>
-              <select
-                id="guild-select"
-                className="w-full p-2 rounded-md bg-zinc-950 border border-zinc-700"
-                value={selectedGuildId}
-                onChange={(e) => handleGuildChange(e.target.value)}
-                disabled={servers.length === 0}
-              >
-                {servers.length === 0 ? (
-                  <option value="">No shared servers with bot</option>
-                ) : (
-                  servers.map((server) => (
-                    <option key={server.guild_id} value={server.guild_id}>
-                      {server.guild_name}
-                      {server.can_edit ? "" : " (read only)"}
-                    </option>
-                  ))
-                )}
-              </select>
+              <p className="block mb-2 font-semibold">Select server</p>
+
+              {servers.length === 0 ? (
+                <div className="w-full p-3 rounded-md bg-zinc-950 border border-zinc-700 text-sm text-zinc-400">
+                  No shared servers with bot
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {servers.map((server) => {
+                    const isSelected = selectedGuildId === server.guild_id;
+
+                    return (
+                      <button
+                        key={server.guild_id}
+                        type="button"
+                        onClick={() => handleGuildChange(server.guild_id)}
+                        className={`w-full rounded-md border px-3 py-2 text-left transition ${
+                          isSelected
+                            ? "border-violet-500 bg-violet-500/10"
+                            : "border-zinc-700 bg-zinc-950 hover:bg-zinc-900"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {server.guild_icon ? (
+                            <Image
+                              src={server.guild_icon}
+                              alt={server.guild_name}
+                              width={28}
+                              height={28}
+                              className={`rounded-full border border-zinc-600 ${
+                                server.can_edit ? "" : "opacity-45"
+                              }`}
+                            />
+                          ) : (
+                            <div
+                              className={`w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold ${
+                                server.can_edit ? "" : "opacity-45"
+                              }`}
+                            >
+                              {server.guild_name?.[0] || "?"}
+                            </div>
+                          )}
+
+                          <div className="min-w-0">
+                            <p
+                              className={`truncate text-sm ${
+                                server.can_edit
+                                  ? "text-zinc-100"
+                                  : "text-zinc-500"
+                              }`}
+                            >
+                              {server.guild_name}
+                            </p>
+                            {!server.can_edit ? (
+                              <p className="text-[11px] leading-tight text-zinc-500">
+                                no permissions
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               <p className="text-xs text-gray-400 mt-2">
                 You can choose only servers where both you and Eppy are present.
@@ -353,72 +459,106 @@ export default function Dashboard() {
 
               <div className={selectedGuild.can_edit ? "" : "opacity-70"}>
                 <section>
-                  <h2 className="text-lg font-semibold mb-3">
-                    Primary Channels
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {PRIMARY_CHANNEL_FIELDS.map((field) => (
-                      <ChannelSelect
-                        key={field.key}
-                        id={field.id}
-                        label={field.label}
-                        value={form[field.key]}
-                        channels={selectedGuildChannels}
-                        onChange={(value) =>
-                          handleFieldChange(field.key, value)
-                        }
-                      />
-                    ))}
+                  <div className="flex items-center justify-between gap-4 mb-3">
+                    <h2 className="text-lg font-semibold">Notifications</h2>
+                    <ToggleSwitch
+                      id="notifications-category-enabled"
+                      checked={form.notifications_enabled}
+                      onChange={(value) =>
+                        handleFieldChange("notifications_enabled", value)
+                      }
+                      label="Category enabled"
+                    />
+                  </div>
+
+                  <div
+                    className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${
+                      form.notifications_enabled ? "" : "opacity-60"
+                    }`}
+                  >
+                    {NOTIFICATION_FIELDS.map((field) => {
+                      const channelEnabled = form[field.toggleKey];
+                      const fieldActive =
+                        form.notifications_enabled && channelEnabled;
+
+                      return (
+                        <div
+                          key={field.key}
+                          className="rounded-lg border border-zinc-700 bg-zinc-950/60 p-3"
+                        >
+                          <div className="flex items-center justify-between gap-3 mb-2">
+                            <p className="text-sm font-medium text-zinc-100">
+                              {field.label}
+                            </p>
+                            <ToggleSwitch
+                              id={`${field.id}-enabled`}
+                              checked={channelEnabled}
+                              onChange={(value) =>
+                                handleFieldChange(field.toggleKey, value)
+                              }
+                              label="Enabled"
+                              disabled={!form.notifications_enabled}
+                            />
+                          </div>
+
+                          <ChannelSelect
+                            id={field.id}
+                            label="Channel"
+                            value={form[field.key]}
+                            channels={selectedGuildChannels}
+                            onChange={(value) =>
+                              handleFieldChange(field.key, value)
+                            }
+                            disabled={!fieldActive}
+                            emptyLabel={
+                              field.requiresChannel
+                                ? "Select channel"
+                                : "None (use command channel)"
+                            }
+                          />
+
+                          {field.requiresChannel &&
+                          fieldActive &&
+                          !form[field.key] ? (
+                            <p className="text-[11px] text-amber-300 mt-1">
+                              Channel is required when enabled.
+                            </p>
+                          ) : null}
+
+                          {!field.requiresChannel ? (
+                            <p className="text-[11px] text-zinc-400 mt-1">
+                              Without selected channel, bot uses command
+                              channel.
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
 
                 <section>
-                  <h2 className="text-lg font-semibold mb-3">
-                    Additional Channels
-                  </h2>
+                  <h2 className="text-lg font-semibold mb-3">Roles</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {EVENT_CHANNEL_FIELDS.map((field) => (
-                      <ChannelSelect
-                        key={field.key}
-                        id={field.id}
-                        label={field.label}
-                        value={form[field.key]}
-                        channels={selectedGuildChannels}
-                        onChange={(value) =>
-                          handleFieldChange(field.key, value)
-                        }
-                      />
-                    ))}
-                  </div>
-                </section>
+                    <RoleSelect
+                      id="notification-role-id"
+                      label="Notification role"
+                      value={form.notification_role_id}
+                      roles={selectedGuildRoles}
+                      onChange={(value) =>
+                        handleFieldChange("notification_role_id", value)
+                      }
+                    />
 
-                <section>
-                  <h2 className="text-lg font-semibold mb-3">Role</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label
-                        htmlFor="notification-role-id"
-                        className="block mb-1 text-sm text-gray-200"
-                      >
-                        Discord role ID
-                      </label>
-                      <input
-                        id="notification-role-id"
-                        type="text"
-                        value={form.notification_role_id}
-                        onChange={(e) =>
-                          handleFieldChange(
-                            "notification_role_id",
-                            e.target.value.replace(/\D/g, ""),
-                          )
-                        }
-                        className="w-full p-2 rounded-md bg-zinc-950 border border-zinc-700"
-                        placeholder="Example: 123456789012345678"
-                      />
-                      <p className="text-xs text-gray-400 mt-1">
-                        Enable Developer Mode in Discord and copy the role ID.
-                      </p>
-                    </div>
+                    <RoleSelect
+                      id="update-notification-role-id"
+                      label="Update notification role"
+                      value={form.update_notification_role_id}
+                      roles={selectedGuildRoles}
+                      onChange={(value) =>
+                        handleFieldChange("update_notification_role_id", value)
+                      }
+                    />
                   </div>
                 </section>
 
@@ -467,7 +607,48 @@ export default function Dashboard() {
   );
 }
 
-function ChannelSelect({ id, label, value, channels, onChange }) {
+function ToggleSwitch({ id, checked, onChange, label, disabled = false }) {
+  return (
+    <button
+      id={id}
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => {
+        if (!disabled) {
+          onChange(!checked);
+        }
+      }}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+        disabled
+          ? "opacity-50 cursor-not-allowed bg-zinc-700"
+          : checked
+            ? "bg-blue-600"
+            : "bg-zinc-600"
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+          checked ? "translate-x-5" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
+}
+
+function formatRoleColor(colorValue) {
+  const numeric = Number(colorValue || 0);
+  const safeNumber = Number.isFinite(numeric) ? numeric : 0;
+  return `#${safeNumber.toString(16).padStart(6, "0").toUpperCase()}`;
+}
+
+function RoleSelect({ id, label, value, roles, onChange, disabled = false }) {
+  const selectedRole = roles.find((role) => role.role_id === value) || null;
+  const selectedColor = selectedRole
+    ? formatRoleColor(selectedRole.role_color)
+    : null;
+
   return (
     <div>
       <label htmlFor={id} className="block mb-1 text-sm text-gray-200">
@@ -477,9 +658,61 @@ function ChannelSelect({ id, label, value, channels, onChange }) {
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full p-2 rounded-md bg-zinc-950 border border-zinc-700"
+        disabled={disabled}
+        className="w-full p-2 rounded-md bg-zinc-950 border border-zinc-700 disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        <option value="">None (clear setting)</option>
+        <option value="">None</option>
+        {roles.map((role) => {
+          const colorHex = formatRoleColor(role.role_color);
+          const level = Number(role.permission_level || 0);
+          return (
+            <option key={role.role_id} value={role.role_id}>
+              @{role.role_name} • {colorHex} • lvl {level}
+            </option>
+          );
+        })}
+      </select>
+
+      {selectedRole ? (
+        <div className="mt-2 flex items-center gap-2 text-xs text-zinc-300">
+          <span
+            className="inline-block h-3 w-3 rounded-full border border-zinc-600"
+            style={{ backgroundColor: selectedColor }}
+            aria-hidden
+          />
+          <span>
+            Selected: @{selectedRole.role_name} ({selectedColor})
+          </span>
+        </div>
+      ) : (
+        <p className="text-xs text-zinc-400 mt-1">No role selected.</p>
+      )}
+    </div>
+  );
+}
+
+function ChannelSelect({
+  id,
+  label,
+  value,
+  channels,
+  onChange,
+  disabled = false,
+  emptyLabel = "None (clear setting)",
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="block mb-1 text-sm text-gray-200">
+        {label}
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="w-full p-2 rounded-md bg-zinc-950 border border-zinc-700 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <option value="">{emptyLabel}</option>
         {channels.map((channel) => (
           <option key={channel.channel_id} value={channel.channel_id}>
             #{channel.channel_name}

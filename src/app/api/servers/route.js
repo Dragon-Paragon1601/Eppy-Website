@@ -12,6 +12,15 @@ const pool = mysql.createPool({
 
 const promisePool = pool.promise();
 const MANAGE_GUILD_LEVEL = 6;
+const NOTIFICATION_DEFAULTS = {
+  notifications_enabled: true,
+  queue_notifications_enabled: true,
+  welcome_notifications_enabled: false,
+  ban_notifications_enabled: true,
+  kick_notifications_enabled: true,
+  notification_channel_enabled: false,
+  update_notification_channel_enabled: false,
+};
 const TABLE_DEFINITIONS = [
   {
     table: "queue_channels",
@@ -41,6 +50,18 @@ const TABLE_DEFINITIONS = [
     table: "update_notification_roles",
     sql: "CREATE TABLE IF NOT EXISTS update_notification_roles (guild_id VARCHAR(32) NOT NULL PRIMARY KEY, notification_role_id VARCHAR(32) NOT NULL, selected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, selected_by VARCHAR(32) NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
   },
+  {
+    table: "notification_roles",
+    sql: "CREATE TABLE IF NOT EXISTS notification_roles (guild_id VARCHAR(32) NOT NULL PRIMARY KEY, notification_role_id VARCHAR(32) NOT NULL, selected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, selected_by VARCHAR(32) NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+  {
+    table: "guild_notification_settings",
+    sql: "CREATE TABLE IF NOT EXISTS guild_notification_settings (guild_id VARCHAR(32) NOT NULL PRIMARY KEY, notifications_enabled TINYINT(1) NOT NULL DEFAULT 1, queue_notifications_enabled TINYINT(1) NOT NULL DEFAULT 1, welcome_notifications_enabled TINYINT(1) NOT NULL DEFAULT 0, ban_notifications_enabled TINYINT(1) NOT NULL DEFAULT 1, kick_notifications_enabled TINYINT(1) NOT NULL DEFAULT 1, notification_channel_enabled TINYINT(1) NOT NULL DEFAULT 0, update_notification_channel_enabled TINYINT(1) NOT NULL DEFAULT 0, selected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, selected_by VARCHAR(32) NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+  {
+    table: "guild_roles",
+    sql: "CREATE TABLE IF NOT EXISTS guild_roles (guild_id VARCHAR(32) NOT NULL, role_id VARCHAR(32) NOT NULL, role_name VARCHAR(255) NOT NULL, role_color INT UNSIGNED NOT NULL DEFAULT 0, permission_level TINYINT NOT NULL DEFAULT 0, permissions_bitfield VARCHAR(32) NOT NULL, position INT NOT NULL DEFAULT 0, is_hoist TINYINT(1) NOT NULL DEFAULT 0, is_mentionable TINYINT(1) NOT NULL DEFAULT 0, is_managed TINYINT(1) NOT NULL DEFAULT 0, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (guild_id, role_id), KEY idx_guild_roles_guild_id (guild_id), KEY idx_guild_roles_position (guild_id, position)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
 ];
 
 async function ensureSettingsTables() {
@@ -56,6 +77,52 @@ function jsonResponse(payload, status = 200) {
       "Content-Type": "application/json",
     },
   });
+}
+
+function normalizeBoolean(value, fallback = true) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (value === 1 || value === "1" || value === "true") {
+    return true;
+  }
+  if (value === 0 || value === "0" || value === "false") {
+    return false;
+  }
+  return fallback;
+}
+
+function normalizeNotificationSettings(input = {}) {
+  return {
+    notifications_enabled: normalizeBoolean(
+      input.notifications_enabled,
+      NOTIFICATION_DEFAULTS.notifications_enabled,
+    ),
+    queue_notifications_enabled: normalizeBoolean(
+      input.queue_notifications_enabled,
+      NOTIFICATION_DEFAULTS.queue_notifications_enabled,
+    ),
+    welcome_notifications_enabled: normalizeBoolean(
+      input.welcome_notifications_enabled,
+      NOTIFICATION_DEFAULTS.welcome_notifications_enabled,
+    ),
+    ban_notifications_enabled: normalizeBoolean(
+      input.ban_notifications_enabled,
+      NOTIFICATION_DEFAULTS.ban_notifications_enabled,
+    ),
+    kick_notifications_enabled: normalizeBoolean(
+      input.kick_notifications_enabled,
+      NOTIFICATION_DEFAULTS.kick_notifications_enabled,
+    ),
+    notification_channel_enabled: normalizeBoolean(
+      input.notification_channel_enabled,
+      NOTIFICATION_DEFAULTS.notification_channel_enabled,
+    ),
+    update_notification_channel_enabled: normalizeBoolean(
+      input.update_notification_channel_enabled,
+      NOTIFICATION_DEFAULTS.update_notification_channel_enabled,
+    ),
+  };
 }
 
 async function getUserGuilds(userId) {
@@ -131,6 +198,19 @@ async function getGuildChannels(guildIds) {
   return rows;
 }
 
+async function getGuildRoles(guildIds) {
+  if (!guildIds.length) {
+    return [];
+  }
+
+  const [rows] = await promisePool.query(
+    "SELECT guild_id, role_id, role_name, role_color, permission_level, permissions_bitfield, position, is_hoist, is_mentionable, is_managed, updated_at FROM guild_roles WHERE guild_id IN (?) ORDER BY position DESC, role_name ASC",
+    [guildIds],
+  );
+
+  return rows;
+}
+
 async function getGuildSettings(guildIds) {
   if (!guildIds.length) {
     return [];
@@ -160,8 +240,16 @@ async function getGuildSettings(guildIds) {
     "SELECT guild_id, kick_notification_channel_id FROM kick_notification_channels WHERE guild_id IN (?)",
     [guildIds],
   );
-  const [roleRows] = await promisePool.query(
+  const [updateRoleRows] = await promisePool.query(
     "SELECT guild_id, notification_role_id FROM update_notification_roles WHERE guild_id IN (?)",
+    [guildIds],
+  );
+  const [notificationRoleRows] = await promisePool.query(
+    "SELECT guild_id, notification_role_id FROM notification_roles WHERE guild_id IN (?)",
+    [guildIds],
+  );
+  const [notificationSettingsRows] = await promisePool.query(
+    "SELECT guild_id, notifications_enabled, queue_notifications_enabled, welcome_notifications_enabled, ban_notifications_enabled, kick_notifications_enabled, notification_channel_enabled, update_notification_channel_enabled FROM guild_notification_settings WHERE guild_id IN (?)",
     [guildIds],
   );
 
@@ -177,6 +265,8 @@ async function getGuildSettings(guildIds) {
       ban_notification_channel_id: null,
       kick_notification_channel_id: null,
       notification_role_id: null,
+      update_notification_role_id: null,
+      ...NOTIFICATION_DEFAULTS,
     });
   });
 
@@ -223,14 +313,83 @@ async function getGuildSettings(guildIds) {
     }
   });
 
-  roleRows.forEach((row) => {
+  notificationRoleRows.forEach((row) => {
     const current = settingsMap.get(row.guild_id);
     if (current) {
       current.notification_role_id = row.notification_role_id;
     }
   });
 
+  updateRoleRows.forEach((row) => {
+    const current = settingsMap.get(row.guild_id);
+    if (current) {
+      current.update_notification_role_id = row.notification_role_id;
+    }
+  });
+
+  notificationSettingsRows.forEach((row) => {
+    const current = settingsMap.get(row.guild_id);
+    if (current) {
+      current.notifications_enabled = Boolean(row.notifications_enabled);
+      current.queue_notifications_enabled = Boolean(
+        row.queue_notifications_enabled,
+      );
+      current.welcome_notifications_enabled = Boolean(
+        row.welcome_notifications_enabled,
+      );
+      current.ban_notifications_enabled = Boolean(
+        row.ban_notifications_enabled,
+      );
+      current.kick_notifications_enabled = Boolean(
+        row.kick_notifications_enabled,
+      );
+      current.notification_channel_enabled = Boolean(
+        row.notification_channel_enabled,
+      );
+      current.update_notification_channel_enabled = Boolean(
+        row.update_notification_channel_enabled,
+      );
+    }
+  });
+
   return Array.from(settingsMap.values());
+}
+
+async function upsertNotificationSettings(guildId, settings, userId) {
+  await promisePool.query(
+    `INSERT INTO guild_notification_settings (
+      guild_id,
+      notifications_enabled,
+      queue_notifications_enabled,
+      welcome_notifications_enabled,
+      ban_notifications_enabled,
+      kick_notifications_enabled,
+      notification_channel_enabled,
+      update_notification_channel_enabled,
+      selected_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      notifications_enabled = VALUES(notifications_enabled),
+      queue_notifications_enabled = VALUES(queue_notifications_enabled),
+      welcome_notifications_enabled = VALUES(welcome_notifications_enabled),
+      ban_notifications_enabled = VALUES(ban_notifications_enabled),
+      kick_notifications_enabled = VALUES(kick_notifications_enabled),
+      notification_channel_enabled = VALUES(notification_channel_enabled),
+      update_notification_channel_enabled = VALUES(update_notification_channel_enabled),
+      selected_by = VALUES(selected_by),
+      selected_at = CURRENT_TIMESTAMP`,
+    [
+      guildId,
+      settings.notifications_enabled ? 1 : 0,
+      settings.queue_notifications_enabled ? 1 : 0,
+      settings.welcome_notifications_enabled ? 1 : 0,
+      settings.ban_notifications_enabled ? 1 : 0,
+      settings.kick_notifications_enabled ? 1 : 0,
+      settings.notification_channel_enabled ? 1 : 0,
+      settings.update_notification_channel_enabled ? 1 : 0,
+      userId,
+    ],
+  );
 }
 
 async function canManageGuild(userId, guildId) {
@@ -250,6 +409,15 @@ async function isTextChannelInGuild(guildId, channelId) {
   const [rows] = await promisePool.query(
     "SELECT channel_id FROM channels WHERE guild_id = ? AND channel_id = ? AND channel_type = '0' LIMIT 1",
     [guildId, channelId],
+  );
+
+  return rows.length > 0;
+}
+
+async function isRoleInGuild(guildId, roleId) {
+  const [rows] = await promisePool.query(
+    "SELECT role_id FROM guild_roles WHERE guild_id = ? AND role_id = ? LIMIT 1",
+    [guildId, roleId],
   );
 
   return rows.length > 0;
@@ -304,6 +472,7 @@ export async function GET() {
 
     const guildIds = userServers.map((server) => server.guild_id);
     const channels = await getGuildChannels(guildIds);
+    const roles = await getGuildRoles(guildIds);
     const guildSettings = await getGuildSettings(guildIds);
     const memberProfiles = await getMemberProfiles(
       session.accessToken,
@@ -319,6 +488,7 @@ export async function GET() {
     return jsonResponse({
       servers,
       channels,
+      roles,
       guildSettings,
     });
   } catch (error) {
@@ -343,6 +513,7 @@ export async function POST(req) {
 
   const body = await req.json();
   const guildId = body.guild_id;
+  const notificationSettings = normalizeNotificationSettings(body);
 
   if (!guildId) {
     return jsonResponse({ error: "Brak guild_id" }, 400);
@@ -406,12 +577,84 @@ export async function POST(req) {
       }
     }
 
-    const roleId = body.notification_role_id || null;
-    if (roleId && !/^\d+$/.test(String(roleId))) {
+    if (
+      notificationSettings.notifications_enabled &&
+      notificationSettings.notification_channel_enabled &&
+      !body.notification_channel_id
+    ) {
+      return jsonResponse(
+        {
+          error:
+            "Dla włączonych Eppy Notifications musisz wybrać notification channel.",
+        },
+        400,
+      );
+    }
+
+    if (
+      notificationSettings.notifications_enabled &&
+      notificationSettings.update_notification_channel_enabled &&
+      !body.update_notification_channel_id
+    ) {
+      return jsonResponse(
+        {
+          error:
+            "Dla włączonych Eppy Updates musisz wybrać update notification channel.",
+        },
+        400,
+      );
+    }
+
+    const notificationRoleId = body.notification_role_id || null;
+    const updateNotificationRoleId = body.update_notification_role_id || null;
+
+    if (notificationRoleId && !/^\d+$/.test(String(notificationRoleId))) {
       return jsonResponse(
         { error: "notification_role_id musi być poprawnym ID roli Discord." },
         400,
       );
+    }
+
+    if (
+      updateNotificationRoleId &&
+      !/^\d+$/.test(String(updateNotificationRoleId))
+    ) {
+      return jsonResponse(
+        {
+          error:
+            "update_notification_role_id musi być poprawnym ID roli Discord.",
+        },
+        400,
+      );
+    }
+
+    if (notificationRoleId) {
+      const isRoleValid = await isRoleInGuild(guildId, notificationRoleId);
+      if (!isRoleValid) {
+        return jsonResponse(
+          {
+            error:
+              "notification_role_id nie istnieje dla wybranej gildii albo role nie zostały jeszcze zsynchronizowane.",
+          },
+          400,
+        );
+      }
+    }
+
+    if (updateNotificationRoleId) {
+      const isRoleValid = await isRoleInGuild(
+        guildId,
+        updateNotificationRoleId,
+      );
+      if (!isRoleValid) {
+        return jsonResponse(
+          {
+            error:
+              "update_notification_role_id nie istnieje dla wybranej gildii albo role nie zostały jeszcze zsynchronizowane.",
+          },
+          400,
+        );
+      }
     }
 
     for (const setting of channelSettings) {
@@ -425,12 +668,22 @@ export async function POST(req) {
     }
 
     await upsertOrDeleteSetting(
+      "notification_roles",
+      "notification_role_id",
+      guildId,
+      notificationRoleId,
+      userId,
+    );
+
+    await upsertOrDeleteSetting(
       "update_notification_roles",
       "notification_role_id",
       guildId,
-      roleId,
+      updateNotificationRoleId,
       userId,
     );
+
+    await upsertNotificationSettings(guildId, notificationSettings, userId);
 
     logger.info(`✅ Ustawienia zapisane dla gildii ${guildId} przez ${userId}`);
 
@@ -444,7 +697,9 @@ export async function POST(req) {
         body.update_notification_channel_id || null,
       ban_notification_channel_id: body.ban_notification_channel_id || null,
       kick_notification_channel_id: body.kick_notification_channel_id || null,
-      notification_role_id: roleId,
+      notification_role_id: notificationRoleId,
+      update_notification_role_id: updateNotificationRoleId,
+      ...notificationSettings,
     });
   } catch (error) {
     logger.error("❌ Błąd zapisu ustawień w MySQL:", error);
