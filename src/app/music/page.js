@@ -773,25 +773,57 @@ export default function MusicPage() {
                       {searchResults.length ? (
                         <div className="space-y-2">
                           {searchResults.map((track) => (
-                            <button
+                            <div
                               key={`search-${track.id}`}
-                              type="button"
-                              onClick={() => {
-                                setBrowseView("track");
-                                setBrowseTitle(
-                                  `${track.title} • ${track.artist}`,
-                                );
-                                setSearchValue("");
-                              }}
-                              className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-left hover:bg-zinc-800"
+                              className="flex items-center justify-between gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 hover:bg-zinc-800"
                             >
-                              <p className="truncate text-sm text-zinc-100">
-                                {track.title}
-                              </p>
-                              <p className="truncate text-xs text-zinc-400">
-                                {track.artist}
-                              </p>
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBrowseView("track");
+                                  setBrowseTitle(
+                                    `${track.title} • ${track.artist}`,
+                                  );
+                                  setSearchValue("");
+                                }}
+                                className="min-w-0 flex-1 text-left"
+                              >
+                                <p className="truncate text-sm text-zinc-100">
+                                  {track.title}
+                                </p>
+                                <p className="truncate text-xs text-zinc-400">
+                                  {track.artist}
+                                </p>
+                              </button>
+
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleAddTrackToSelectedPlaylist(track)
+                                  }
+                                  disabled={!selectedUserPlaylistId}
+                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 disabled:opacity-30"
+                                  aria-label="Add to selected playlist"
+                                  title={
+                                    selectedUserPlaylistId
+                                      ? "Add to selected playlist"
+                                      : "Select your playlist first"
+                                  }
+                                >
+                                  <Plus size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePriorityQueueAdd(track)}
+                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100"
+                                  aria-label={`Add ${track.title} to priority queue`}
+                                  title="Add to priority queue"
+                                >
+                                  <Play size={13} />
+                                </button>
+                              </div>
+                            </div>
                           ))}
                         </div>
                       ) : (
