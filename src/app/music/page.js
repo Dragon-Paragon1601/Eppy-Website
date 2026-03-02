@@ -1039,7 +1039,7 @@ export default function MusicPage() {
                       }}
                       autoFocus
                       placeholder="Playlist name"
-                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500"
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-950 py-1.5 pl-7 pr-2 text-xs text-zinc-100 placeholder:text-zinc-500 hover:border-cyan-200/40"
                     />
 
                     <div className="mt-3 flex items-center justify-end gap-2">
@@ -1049,7 +1049,7 @@ export default function MusicPage() {
                           setIsCreatePlaylistOpen(false);
                           setNewPlaylistName("");
                         }}
-                        className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-200 hover:bg-zinc-800"
+                        className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-200 hover:bg-zinc-800  hover:text-red-300"
                       >
                         Cancel
                       </button>
@@ -1442,7 +1442,7 @@ export default function MusicPage() {
                     setSelectedTrackKeys([]);
                     setSelectedPlaylistKeys([]);
                   }}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 hover:text-amber-300"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 hover:text-amber-600"
                   aria-label="Open full library"
                   title="All library tracks"
                 >
@@ -1991,8 +1991,11 @@ export default function MusicPage() {
 
           <div className="fixed left-1/2 top-1/2 z-[60] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-zinc-700 bg-zinc-950 p-4 shadow-2xl">
             <p className="text-sm font-semibold text-zinc-100">
-              Are you sure you want to delete playlist {" "}
-              <span className="text-zinc-200">“{pendingDeletePlaylist.name}”</span>?
+              Are you sure you want to delete playlist{" "}
+              <span className="text-zinc-200">
+                “{pendingDeletePlaylist.name}”
+              </span>
+              ?
             </p>
 
             <div className="mt-4 flex items-center justify-end gap-2">
