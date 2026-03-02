@@ -89,6 +89,8 @@ export default function MusicPage() {
   const [dropTargetUserPlaylistId, setDropTargetUserPlaylistId] =
     useState(null);
   const [dropTargetPosition, setDropTargetPosition] = useState("before");
+  const [draggedPlaylistTrackKey, setDraggedPlaylistTrackKey] = useState(null);
+  const [playlistTrackDropTarget, setPlaylistTrackDropTarget] = useState(null);
 
   useEffect(() => {
     if (!session) return;
@@ -740,6 +742,117 @@ export default function MusicPage() {
     selectedUserPlaylist &&
     selectedUserPlaylist.name === selectedPlaylistName;
 
+  const isUserPlaylistTrackReorderEnabled =
+    isSelectedPrivatePlaylistView && sortBy === "number";
+
+  const resetPlaylistTrackDragState = useCallback(() => {
+    setDraggedPlaylistTrackKey(null);
+    setPlaylistTrackDropTarget(null);
+  }, []);
+
+  useEffect(() => {
+    if (isUserPlaylistTrackReorderEnabled) return;
+    resetPlaylistTrackDragState();
+  }, [isUserPlaylistTrackReorderEnabled, resetPlaylistTrackDragState]);
+
+  const canDropOnPlaylistTrack = useCallback(
+    (track) => {
+      if (!isUserPlaylistTrackReorderEnabled || !track?.track_key) {
+        return false;
+      }
+
+      return String(track.track_key) !== String(draggedPlaylistTrackKey);
+    },
+    [draggedPlaylistTrackKey, isUserPlaylistTrackReorderEnabled],
+  );
+
+  const handlePlaylistTrackDragStart = useCallback(
+    (event, track) => {
+      if (!isUserPlaylistTrackReorderEnabled || !track?.track_key) return;
+
+      setDraggedPlaylistTrackKey(String(track.track_key));
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(track.track_key));
+    },
+    [isUserPlaylistTrackReorderEnabled],
+  );
+
+  const handlePlaylistTrackDragOver = useCallback(
+    (event, track) => {
+      if (!canDropOnPlaylistTrack(track)) return;
+
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const midpoint = bounds.top + bounds.height / 2;
+      const position = event.clientY >= midpoint ? "after" : "before";
+
+      setPlaylistTrackDropTarget({
+        trackKey: String(track.track_key),
+        position,
+      });
+    },
+    [canDropOnPlaylistTrack],
+  );
+
+  const handlePlaylistTrackDragLeave = useCallback((event, track) => {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget && event.currentTarget.contains(nextTarget)) {
+      return;
+    }
+
+    setPlaylistTrackDropTarget((current) => {
+      if (!current || !track?.track_key) return current;
+      if (String(current.trackKey) !== String(track.track_key)) {
+        return current;
+      }
+
+      return null;
+    });
+  }, []);
+
+  const handlePlaylistTrackDrop = useCallback(
+    async (event, track) => {
+      event.preventDefault();
+
+      if (
+        !selectedUserPlaylistId ||
+        !canDropOnPlaylistTrack(track) ||
+        !draggedPlaylistTrackKey
+      ) {
+        resetPlaylistTrackDragState();
+        return;
+      }
+
+      const position =
+        playlistTrackDropTarget &&
+        String(playlistTrackDropTarget.trackKey) === String(track.track_key)
+          ? playlistTrackDropTarget.position
+          : "before";
+
+      const draggedTrackKey = String(draggedPlaylistTrackKey);
+      const targetTrackKey = String(track.track_key);
+
+      resetPlaylistTrackDragState();
+
+      await sendAction("reorder_track_in_user_playlist", {
+        playlist_id: selectedUserPlaylistId,
+        dragged_track_key: draggedTrackKey,
+        target_track_key: targetTrackKey,
+        drop_position: position,
+      });
+    },
+    [
+      canDropOnPlaylistTrack,
+      draggedPlaylistTrackKey,
+      playlistTrackDropTarget,
+      resetPlaylistTrackDragState,
+      selectedUserPlaylistId,
+      sendAction,
+    ],
+  );
+
   const trackByKey = useMemo(() => {
     const byKey = new Map();
     for (const track of sortedLibraryTracks) {
@@ -803,11 +916,12 @@ export default function MusicPage() {
       selectedUserPlaylist &&
       selectedUserPlaylist.name === selectedPlaylistName
     ) {
-      return (selectedUserPlaylist.tracks || [])
+      const mappedTracks = (selectedUserPlaylist.tracks || [])
         .filter((track) => !!track.track_key)
         .map((track, index) => {
           const key = String(track.track_key);
           const libraryTrack = trackByKey.get(key);
+          const playlistNumber = index + 1;
 
           return {
             ...(libraryTrack || {}),
@@ -817,10 +931,35 @@ export default function MusicPage() {
               track.track_key ||
               track.path ||
               `user-playlist-track-${index}`,
-            number: index + 1,
+            number: playlistNumber,
+            playlist_number: playlistNumber,
             duration: track.duration || libraryTrack?.duration || "--:--",
           };
         });
+
+      return [...mappedTracks].sort((left, right) => {
+        let result = 0;
+
+        if (sortBy === "artist") {
+          result = String(left.artist || "").localeCompare(
+            String(right.artist || ""),
+          );
+        } else if (sortBy === "title") {
+          result = String(left.title || "").localeCompare(
+            String(right.title || ""),
+          );
+        } else if (sortBy === "duration") {
+          result =
+            durationToSeconds(left.duration) -
+            durationToSeconds(right.duration);
+        } else {
+          result =
+            Number(left.playlist_number || left.number || 0) -
+            Number(right.playlist_number || right.number || 0);
+        }
+
+        return sortDirection === "asc" ? result : -result;
+      });
     }
 
     return sortedLibraryTracks.filter(
@@ -828,6 +967,8 @@ export default function MusicPage() {
     );
   }, [
     browseView,
+    sortBy,
+    sortDirection,
     selectedPlaylistName,
     selectedUserPlaylist,
     trackByKey,
@@ -1829,80 +1970,111 @@ export default function MusicPage() {
                 </div>
 
                 <div className="max-h-[21rem] space-y-2 overflow-y-auto pr-1">
-                  {visibleLibraryTracks.map((track) => (
-                    <div
-                      key={track.id}
-                      onClick={(event) => handleTrackCardClick(event, track)}
-                      className={`group flex items-center justify-between rounded-md border px-3 py-2 ${selectedTrackKeys.includes(String(track.track_key || track.path || track.id || "")) ? "border-green-500/70 bg-green-500/10" : "border-zinc-700 bg-zinc-950"}`}
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <div className="relative flex h-7 w-7 shrink-0 items-center justify-center">
-                          <span className="text-xs text-zinc-400 transition-opacity group-hover:opacity-0">
-                            {track.number}
-                          </span>
+                  {visibleLibraryTracks.map((track) => {
+                    const isDraggedTrack =
+                      String(draggedPlaylistTrackKey || "") ===
+                      String(track.track_key || "");
+                    const isTrackDropTarget =
+                      playlistTrackDropTarget &&
+                      String(playlistTrackDropTarget.trackKey) ===
+                        String(track.track_key || "") &&
+                      canDropOnPlaylistTrack(track);
+
+                    return (
+                      <div
+                        key={track.id}
+                        draggable={isUserPlaylistTrackReorderEnabled}
+                        onDragStart={(event) =>
+                          handlePlaylistTrackDragStart(event, track)
+                        }
+                        onDragOver={(event) =>
+                          handlePlaylistTrackDragOver(event, track)
+                        }
+                        onDragLeave={(event) =>
+                          handlePlaylistTrackDragLeave(event, track)
+                        }
+                        onDrop={(event) =>
+                          handlePlaylistTrackDrop(event, track)
+                        }
+                        onDragEnd={resetPlaylistTrackDragState}
+                        onClick={(event) => handleTrackCardClick(event, track)}
+                        className={`group relative flex items-center justify-between rounded-md border px-3 py-2 transition ${isUserPlaylistTrackReorderEnabled ? "cursor-grab active:cursor-grabbing" : ""} ${isDraggedTrack ? "z-20 scale-[1.01] border-cyan-400/60 bg-zinc-900 shadow-lg shadow-cyan-500/20" : ""} ${selectedTrackKeys.includes(String(track.track_key || track.path || track.id || "")) ? "border-green-500/70 bg-green-500/10" : "border-zinc-700 bg-zinc-950"}`}
+                      >
+                        {isTrackDropTarget ? (
+                          <span
+                            className={`pointer-events-none absolute left-1 right-1 z-30 h-0.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.75)] ${playlistTrackDropTarget?.position === "after" ? "-bottom-1" : "-top-1"}`}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        <div className="flex min-w-0 items-center gap-2">
+                          <div className="relative flex h-7 w-7 shrink-0 items-center justify-center">
+                            <span className="text-xs text-zinc-400 transition-opacity group-hover:opacity-0">
+                              {track.number}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handlePriorityQueueAdd(track);
+                              }}
+                              className="absolute flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 hover:text-blue-300"
+                              aria-label={`Add ${track.title} to priority queue`}
+                              title="Add to priority queue"
+                            >
+                              <Play size={13} />
+                            </button>
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-zinc-100">
+                              {track.title}
+                            </p>
+                            <p className="truncate text-xs text-zinc-400">
+                              {track.artist}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-[1.75rem_3.25rem_1.75rem] items-center gap-2">
+                          {isSelectedPrivatePlaylistView ? (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleRemoveTracksFromSelectedPrivatePlaylist(
+                                  track,
+                                );
+                              }}
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
+                              aria-label="Remove from selected private playlist"
+                              title="Remove from playlist"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          ) : (
+                            <span className="h-7 w-7" aria-hidden="true" />
+                          )}
+
+                          <p className="text-center text-xs text-zinc-400">
+                            {track.duration}
+                          </p>
+
                           <button
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              handlePriorityQueueAdd(track);
+                              handleOpenAddToPlaylists(track);
                             }}
-                            className="absolute flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 hover:text-blue-300"
-                            aria-label={`Add ${track.title} to priority queue`}
-                            title="Add to priority queue"
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 hover:text-green-300 disabled:opacity-30"
+                            aria-label="Add to selected playlist"
+                            title="Add to playlists"
                           >
-                            <Play size={13} />
+                            <Plus size={12} />
                           </button>
                         </div>
-
-                        <div className="min-w-0">
-                          <p className="truncate text-sm text-zinc-100">
-                            {track.title}
-                          </p>
-                          <p className="truncate text-xs text-zinc-400">
-                            {track.artist}
-                          </p>
-                        </div>
                       </div>
-
-                      <div className="grid grid-cols-[1.75rem_3.25rem_1.75rem] items-center gap-2">
-                        {isSelectedPrivatePlaylistView ? (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleRemoveTracksFromSelectedPrivatePlaylist(
-                                track,
-                              );
-                            }}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
-                            aria-label="Remove from selected private playlist"
-                            title="Remove from playlist"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        ) : (
-                          <span className="h-7 w-7" aria-hidden="true" />
-                        )}
-
-                        <p className="text-center text-xs text-zinc-400">
-                          {track.duration}
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleOpenAddToPlaylists(track);
-                          }}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 hover:text-green-300 disabled:opacity-30"
-                          aria-label="Add to selected playlist"
-                          title="Add to playlists"
-                        >
-                          <Plus size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {!visibleLibraryTracks.length ? (
                     <p className="px-1 py-2 text-sm text-zinc-500">

@@ -29,6 +29,7 @@ const ALLOWED_ACTIONS = new Set([
   "delete_user_playlist",
   "add_track_to_user_playlist",
   "remove_track_from_user_playlist",
+  "reorder_track_in_user_playlist",
   "pin_user_playlist",
   "unpin_user_playlist",
   "reorder_user_playlist",
@@ -410,6 +411,8 @@ export async function POST(request) {
     drop_position: body?.drop_position || null,
     from_index: body?.from_index,
     to_index: body?.to_index,
+    dragged_track_key: body?.dragged_track_key || null,
+    target_track_key: body?.target_track_key || null,
   };
 
   if (action === "reorder_user_playlist") {
@@ -784,6 +787,67 @@ export async function POST(request) {
       await promisePool.query(
         "UPDATE guild_music_playlist_tracks SET position = ? WHERE playlist_id = ? AND track_key = ?",
         [index + 1, playlistId, remainingRows[index].track_key],
+      );
+    }
+
+    return jsonResponse({ ok: true });
+  }
+
+  if (action === "reorder_track_in_user_playlist") {
+    const playlistId = toPositiveInt(payload.playlist_id);
+    const draggedTrackKey = truncate(payload.dragged_track_key, 512);
+    const targetTrackKey = truncate(payload.target_track_key, 512);
+    const dropPosition =
+      String(payload.drop_position || "").toLowerCase() === "after"
+        ? "after"
+        : "before";
+
+    if (!playlistId || !draggedTrackKey || !targetTrackKey) {
+      return jsonResponse(
+        {
+          error:
+            "playlist_id, dragged_track_key and target_track_key are required",
+        },
+        400,
+      );
+    }
+
+    if (draggedTrackKey === targetTrackKey) {
+      return jsonResponse({ ok: true });
+    }
+
+    const isEditable = await canEditPlaylist(
+      playlistId,
+      guildId,
+      session.user.id,
+    );
+    if (!isEditable) {
+      return jsonResponse({ error: "You cannot edit this playlist" }, 403);
+    }
+
+    const [rowsTracks] = await promisePool.query(
+      "SELECT track_key FROM guild_music_playlist_tracks WHERE playlist_id = ? ORDER BY position ASC, created_at ASC",
+      [playlistId],
+    );
+
+    const orderedTrackKeys = rowsTracks.map((rowTrack) => rowTrack.track_key);
+    const fromIndex = orderedTrackKeys.indexOf(draggedTrackKey);
+    const targetIndex = orderedTrackKeys.indexOf(targetTrackKey);
+
+    if (fromIndex < 0 || targetIndex < 0) {
+      return jsonResponse({ error: "Track not found in playlist" }, 404);
+    }
+
+    const [movedTrackKey] = orderedTrackKeys.splice(fromIndex, 1);
+    const targetInsertIndex = orderedTrackKeys.indexOf(targetTrackKey);
+    const insertIndex =
+      dropPosition === "after" ? targetInsertIndex + 1 : targetInsertIndex;
+    orderedTrackKeys.splice(insertIndex, 0, movedTrackKey);
+
+    for (let index = 0; index < orderedTrackKeys.length; index += 1) {
+      await promisePool.query(
+        "UPDATE guild_music_playlist_tracks SET position = ? WHERE playlist_id = ? AND track_key = ?",
+        [index + 1, playlistId, orderedTrackKeys[index]],
       );
     }
 
