@@ -27,6 +27,8 @@ const ALLOWED_ACTIONS = new Set([
   "delete_user_playlist",
   "add_track_to_user_playlist",
   "remove_track_from_user_playlist",
+  "pin_user_playlist",
+  "unpin_user_playlist",
 ]);
 
 const TABLE_DEFINITIONS = [
@@ -53,6 +55,14 @@ const TABLE_DEFINITIONS = [
   {
     table: "guild_user_voice_states",
     sql: "CREATE TABLE IF NOT EXISTS guild_user_voice_states (guild_id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NOT NULL, channel_id VARCHAR(32) NOT NULL, channel_name VARCHAR(255) NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (guild_id, user_id), KEY idx_guild_voice_channel (guild_id, channel_id), KEY idx_guild_voice_updated (updated_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+  {
+    table: "guild_user_music_playlist_pins",
+    sql: "CREATE TABLE IF NOT EXISTS guild_user_music_playlist_pins (guild_id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NOT NULL, playlist_id BIGINT UNSIGNED NOT NULL, pinned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (guild_id, user_id, playlist_id), KEY idx_guild_user_playlist_pins_order (guild_id, user_id, pinned_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+  {
+    table: "guild_user_music_recent_playlists",
+    sql: "CREATE TABLE IF NOT EXISTS guild_user_music_recent_playlists (guild_id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NOT NULL, playlist_id BIGINT UNSIGNED NOT NULL, last_played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, play_count INT UNSIGNED NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id, playlist_id), KEY idx_guild_user_recent_playlists_order (guild_id, user_id, last_played_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
   },
 ];
 
@@ -152,6 +162,24 @@ async function canAccessGuild(userId, guildId) {
   return rows.length > 0;
 }
 
+async function playlistBelongsToGuild(playlistId, guildId) {
+  const [playlistRows] = await promisePool.query(
+    "SELECT id FROM guild_music_playlists WHERE id = ? AND guild_id = ? LIMIT 1",
+    [playlistId, guildId],
+  );
+
+  return !!playlistRows?.length;
+}
+
+async function upsertRecentUserPlaylist(guildId, userId, playlistId) {
+  if (!guildId || !userId || !playlistId) return;
+
+  await promisePool.query(
+    "INSERT INTO guild_user_music_recent_playlists (guild_id, user_id, playlist_id, play_count) VALUES (?, ?, ?, 1) ON DUPLICATE KEY UPDATE last_played_at = CURRENT_TIMESTAMP, play_count = play_count + 1",
+    [guildId, userId, playlistId],
+  );
+}
+
 export async function GET(request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -234,6 +262,15 @@ export async function GET(request) {
     [guildId],
   );
 
+  const [pinRows] = await promisePool.query(
+    "SELECT playlist_id, pinned_at FROM guild_user_music_playlist_pins WHERE guild_id = ? AND user_id = ? ORDER BY pinned_at ASC",
+    [guildId, session.user.id],
+  );
+
+  const pinnedByPlaylistId = new Map(
+    pinRows.map((pin) => [String(pin.playlist_id), pin.pinned_at]),
+  );
+
   const playlistIds = playlistRows.map((playlist) => playlist.id);
   let playlistTracksRows = [];
   if (playlistIds.length > 0) {
@@ -268,8 +305,34 @@ export async function GET(request) {
     name: playlist.name,
     songs: Number(playlist.songs || 0),
     owner: playlist.created_by === session.user.id ? "You" : "Shared",
+    is_pinned: pinnedByPlaylistId.has(String(playlist.id)),
+    pinned_at: pinnedByPlaylistId.get(String(playlist.id)) || null,
     tracks: tracksByPlaylist.get(playlist.id) || [],
   }));
+
+  const [recentRows] = await promisePool.query(
+    "SELECT r.playlist_id, r.last_played_at FROM guild_user_music_recent_playlists r INNER JOIN guild_music_playlists p ON p.id = r.playlist_id AND p.guild_id = r.guild_id WHERE r.guild_id = ? AND r.user_id = ? ORDER BY r.last_played_at DESC LIMIT 8",
+    [guildId, session.user.id],
+  );
+
+  const playlistById = new Map(
+    userPlaylists.map((playlist) => [String(playlist.id), playlist]),
+  );
+
+  const recentUserPlaylists = recentRows
+    .map((rowRecent) => {
+      const playlist = playlistById.get(String(rowRecent.playlist_id));
+      if (!playlist) return null;
+
+      return {
+        id: playlist.id,
+        name: playlist.name,
+        songs: playlist.songs,
+        owner: playlist.owner,
+        last_played_at: rowRecent.last_played_at,
+      };
+    })
+    .filter(Boolean);
 
   const [voiceRows] = await promisePool.query(
     "SELECT channel_id, channel_name, updated_at FROM guild_user_voice_states WHERE guild_id = ? AND user_id = ? LIMIT 1",
@@ -290,6 +353,7 @@ export async function GET(request) {
     libraryTracks,
     premadePlaylists,
     userPlaylists,
+    recentUserPlaylists,
     userVoiceState,
   });
 }
@@ -344,6 +408,14 @@ export async function POST(request) {
     payload.playlist_id = playlistId;
     payload.playlist_name = playlistName || null;
     payload.playlist_scope = String(payload.playlist_scope || "").slice(0, 16);
+
+    if (payload.playlist_scope === "user" && payload.playlist_id) {
+      await upsertRecentUserPlaylist(
+        guildId,
+        session.user.id,
+        payload.playlist_id,
+      );
+    }
   }
 
   if (action === "set_shuffle") {
@@ -395,6 +467,61 @@ export async function POST(request) {
     }
 
     payload.playlists = playlists;
+
+    const recentUserPlaylistIds = [
+      ...new Set(
+        playlists
+          .filter((item) => item.playlist_scope === "user" && item.playlist_id)
+          .map((item) => item.playlist_id),
+      ),
+    ];
+
+    for (const playlistId of recentUserPlaylistIds) {
+      await upsertRecentUserPlaylist(guildId, session.user.id, playlistId);
+    }
+  }
+
+  if (action === "pin_user_playlist" || action === "unpin_user_playlist") {
+    const playlistId = toPositiveInt(payload.playlist_id);
+    if (!playlistId) {
+      return jsonResponse({ error: "playlist_id is required" }, 400);
+    }
+
+    const existsInGuild = await playlistBelongsToGuild(playlistId, guildId);
+    if (!existsInGuild) {
+      return jsonResponse({ error: "Playlist not found" }, 404);
+    }
+
+    if (action === "pin_user_playlist") {
+      const [countRows] = await promisePool.query(
+        "SELECT COUNT(*) AS total FROM guild_user_music_playlist_pins WHERE guild_id = ? AND user_id = ?",
+        [guildId, session.user.id],
+      );
+
+      const currentPinnedCount = Number(countRows?.[0]?.total || 0);
+      const [alreadyPinnedRows] = await promisePool.query(
+        "SELECT 1 AS is_pinned FROM guild_user_music_playlist_pins WHERE guild_id = ? AND user_id = ? AND playlist_id = ? LIMIT 1",
+        [guildId, session.user.id, playlistId],
+      );
+
+      if (!alreadyPinnedRows?.length && currentPinnedCount >= 8) {
+        return jsonResponse({ error: "Maximum 8 pinned playlists" }, 409);
+      }
+
+      await promisePool.query(
+        "INSERT INTO guild_user_music_playlist_pins (guild_id, user_id, playlist_id) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE pinned_at = pinned_at",
+        [guildId, session.user.id, playlistId],
+      );
+
+      return jsonResponse({ ok: true });
+    }
+
+    await promisePool.query(
+      "DELETE FROM guild_user_music_playlist_pins WHERE guild_id = ? AND user_id = ? AND playlist_id = ?",
+      [guildId, session.user.id, playlistId],
+    );
+
+    return jsonResponse({ ok: true });
   }
 
   if (action === "create_user_playlist") {

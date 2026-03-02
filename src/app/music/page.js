@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Library,
   Pause,
+  Pin,
   Play,
   Plus,
   Repeat,
@@ -34,45 +35,6 @@ const EMPTY_MUSIC_STATE = {
   previousQueue: [],
 };
 
-const HOME_COLLECTIONS = [
-  {
-    id: "home-a1",
-    type: "artist",
-    title: "Ado Collection",
-    subtitle: "26 tracks",
-  },
-  {
-    id: "home-a2",
-    type: "artist",
-    title: "Kenshi Yonezu Library",
-    subtitle: "18 tracks",
-  },
-  {
-    id: "home-a3",
-    type: "artist",
-    title: "LiSA Collection",
-    subtitle: "22 tracks",
-  },
-  {
-    id: "home-p1",
-    type: "playlist",
-    title: "Top Premade Mix",
-    subtitle: "32 tracks",
-  },
-  {
-    id: "home-p2",
-    type: "playlist",
-    title: "Night Drive",
-    subtitle: "18 tracks",
-  },
-  {
-    id: "home-p3",
-    type: "playlist",
-    title: "Openings Collection",
-    subtitle: "44 tracks",
-  },
-];
-
 function durationToSeconds(duration) {
   const [minutes, seconds] = String(duration || "0:00")
     .split(":")
@@ -91,6 +53,7 @@ export default function MusicPage() {
   const [libraryTracks, setLibraryTracks] = useState([]);
   const [premadePlaylists, setPremadePlaylists] = useState([]);
   const [userPlaylists, setUserPlaylists] = useState([]);
+  const [recentUserPlaylists, setRecentUserPlaylists] = useState([]);
   const [userVoiceState, setUserVoiceState] = useState(null);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
@@ -157,6 +120,11 @@ export default function MusicPage() {
       setUserPlaylists(
         Array.isArray(payload?.userPlaylists) ? payload.userPlaylists : [],
       );
+      setRecentUserPlaylists(
+        Array.isArray(payload?.recentUserPlaylists)
+          ? payload.recentUserPlaylists
+          : [],
+      );
       setUserVoiceState(payload?.userVoiceState || null);
     },
     [session],
@@ -188,6 +156,30 @@ export default function MusicPage() {
 
   const normalizedPlaylistSearch = playlistSearchValue.trim().toLowerCase();
 
+  const pinnedUserPlaylists = useMemo(
+    () =>
+      userPlaylists
+        .filter((playlist) => playlist.is_pinned)
+        .sort(
+          (left, right) =>
+            new Date(left.pinned_at || 0).getTime() -
+            new Date(right.pinned_at || 0).getTime(),
+        ),
+    [userPlaylists],
+  );
+
+  const unpinnedUserPlaylists = useMemo(
+    () => userPlaylists.filter((playlist) => !playlist.is_pinned),
+    [userPlaylists],
+  );
+
+  const orderedUserPlaylists = useMemo(
+    () => [...pinnedUserPlaylists, ...unpinnedUserPlaylists],
+    [pinnedUserPlaylists, unpinnedUserPlaylists],
+  );
+
+  const pinnedPlaylistCount = pinnedUserPlaylists.length;
+
   const filteredPremadePlaylists = useMemo(() => {
     if (!normalizedPlaylistSearch) {
       return premadePlaylists;
@@ -202,25 +194,25 @@ export default function MusicPage() {
 
   const filteredUserPlaylists = useMemo(() => {
     if (!normalizedPlaylistSearch) {
-      return userPlaylists;
+      return orderedUserPlaylists;
     }
 
-    return userPlaylists.filter((playlist) =>
+    return orderedUserPlaylists.filter((playlist) =>
       String(playlist?.name || "")
         .toLowerCase()
         .includes(normalizedPlaylistSearch),
     );
-  }, [normalizedPlaylistSearch, userPlaylists]);
+  }, [normalizedPlaylistSearch, orderedUserPlaylists]);
 
   const mergedFilteredPlaylists = useMemo(() => {
     const allPlaylists = [
+      ...orderedUserPlaylists.map((playlist) => ({
+        ...playlist,
+        scope: "user",
+      })),
       ...premadePlaylists.map((playlist) => ({
         ...playlist,
         scope: "premade",
-      })),
-      ...userPlaylists.map((playlist) => ({
-        ...playlist,
-        scope: "user",
       })),
     ];
 
@@ -233,7 +225,37 @@ export default function MusicPage() {
         .toLowerCase()
         .includes(normalizedPlaylistSearch),
     );
-  }, [normalizedPlaylistSearch, premadePlaylists, userPlaylists]);
+  }, [normalizedPlaylistSearch, premadePlaylists, orderedUserPlaylists]);
+
+  const homeCollectionItems = useMemo(() => {
+    const prioritizedPrivate = (
+      pinnedUserPlaylists.length ? pinnedUserPlaylists : recentUserPlaylists
+    )
+      .slice(0, 6)
+      .map((playlist, index) => ({
+        id: `home-user-${playlist.id}`,
+        type: "playlist",
+        title: playlist.name,
+        subtitle: pinnedUserPlaylists.length
+          ? `Pinned #${index + 1} • ${playlist.songs} tracks`
+          : `Recently played • ${playlist.songs} tracks`,
+        scope: "user",
+        playlistId: playlist.id,
+      }));
+
+    if (prioritizedPrivate.length) {
+      return prioritizedPrivate;
+    }
+
+    return premadePlaylists.slice(0, 6).map((playlist) => ({
+      id: `home-premade-${playlist.id}`,
+      type: "playlist",
+      title: playlist.name,
+      subtitle: `${playlist.songs} tracks`,
+      scope: "premade",
+      playlistId: playlist.id,
+    }));
+  }, [pinnedUserPlaylists, premadePlaylists, recentUserPlaylists]);
 
   const runActionBatch = useCallback(
     async (actions = []) => {
@@ -486,6 +508,20 @@ export default function MusicPage() {
     if (selectedUserPlaylistId === playlistId) {
       setSelectedUserPlaylistId(null);
     }
+  };
+
+  const handleTogglePlaylistPin = (playlist) => {
+    if (!playlist?.id) return;
+
+    const isPinned = playlist.is_pinned === true;
+    if (!isPinned && pinnedPlaylistCount >= 8) {
+      window.alert("You can pin up to 8 playlists.");
+      return;
+    }
+
+    sendAction(isPinned ? "unpin_user_playlist" : "pin_user_playlist", {
+      playlist_id: playlist.id,
+    });
   };
 
   const handleAddTrackToSelectedPlaylist = (track) => {
@@ -788,6 +824,21 @@ export default function MusicPage() {
     setSearchValue("");
   };
 
+  const handleOpenPlaylistFromHome = (item) => {
+    if (!item?.title || item?.type !== "playlist") return;
+
+    setSelectedPlaylistKeys([]);
+    setSelectedTrackKeys([]);
+
+    if (item.scope === "user" && item.playlistId) {
+      setSelectedUserPlaylistId(item.playlistId);
+    } else {
+      setSelectedUserPlaylistId(null);
+    }
+
+    handlePlaylistBrowse(item.title, "playlist");
+  };
+
   const handleSearchInput = (value) => {
     setSearchValue(value);
     if (value.trim().length > 0) {
@@ -1025,6 +1076,34 @@ export default function MusicPage() {
                           </p>
                         </button>
 
+                        {scope === "user" ? (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleTogglePlaylistPin(playlist);
+                            }}
+                            disabled={
+                              !playlist.is_pinned && pinnedPlaylistCount >= 8
+                            }
+                            className={`absolute right-2 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                            aria-label={
+                              playlist.is_pinned
+                                ? `Unpin ${playlist.name}`
+                                : `Pin ${playlist.name}`
+                            }
+                            title={
+                              playlist.is_pinned
+                                ? "Pinned playlist"
+                                : pinnedPlaylistCount >= 8
+                                  ? "Pin limit reached (8)"
+                                  : "Pin playlist"
+                            }
+                          >
+                            <Pin size={12} />
+                          </button>
+                        ) : null}
+
                         <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                           <button
                             type="button"
@@ -1099,7 +1178,12 @@ export default function MusicPage() {
                     ))}
                   </div>
 
-                  <p className="mb-2 text-sm text-zinc-300">Your playlists</p>
+                  <p className="mb-2 flex items-center gap-2 text-sm text-zinc-300">
+                    <span>Your playlists</span>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-amber-500/70 bg-amber-500/15 text-amber-300">
+                      <Pin size={10} />
+                    </span>
+                  </p>
                   <div className="space-y-2">
                     {filteredUserPlaylists.map((playlist) => (
                       <div
@@ -1119,6 +1203,32 @@ export default function MusicPage() {
                           <p className="text-[11px] text-zinc-400">
                             owner: {playlist.owner} • {playlist.songs} tracks
                           </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleTogglePlaylistPin(playlist);
+                          }}
+                          disabled={
+                            !playlist.is_pinned && pinnedPlaylistCount >= 8
+                          }
+                          className={`absolute right-2 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                          aria-label={
+                            playlist.is_pinned
+                              ? `Unpin ${playlist.name}`
+                              : `Pin ${playlist.name}`
+                          }
+                          title={
+                            playlist.is_pinned
+                              ? "Pinned playlist"
+                              : pinnedPlaylistCount >= 8
+                                ? "Pin limit reached (8)"
+                                : "Pin playlist"
+                          }
+                        >
+                          <Pin size={12} />
                         </button>
 
                         <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -1282,22 +1392,33 @@ export default function MusicPage() {
               </p>
               {browseView === "home" ? (
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {HOME_COLLECTIONS.slice(0, 8).map((item) => (
+                  {homeCollectionItems.slice(0, 8).map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => {
-                        setBrowseView(item.type);
-                        setBrowseTitle(item.title);
-                      }}
+                      onClick={() => handleOpenPlaylistFromHome(item)}
                       className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-left hover:bg-zinc-900"
                     >
-                      <p className="truncate text-sm text-zinc-100">
-                        {item.title}
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm text-zinc-100">
+                          {item.title}
+                        </p>
+                        {item.scope === "user" && pinnedUserPlaylists.length ? (
+                          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-500/70 bg-amber-500/15 text-amber-300">
+                            <Pin size={10} />
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="text-xs text-zinc-400">{item.subtitle}</p>
                     </button>
                   ))}
+
+                  {!homeCollectionItems.length ? (
+                    <p className="col-span-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-3 text-xs text-zinc-400">
+                      Pin private playlists to see them here. If none are
+                      pinned, recently played private playlists will appear.
+                    </p>
+                  ) : null}
                 </div>
               ) : browseView === "playlist" ? (
                 <></>
@@ -1371,7 +1492,7 @@ export default function MusicPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-[1.75rem_3.25rem_1.75rem] items-center gap-2">
                         {isSelectedPrivatePlaylistView ? (
                           <button
                             type="button"
@@ -1387,10 +1508,14 @@ export default function MusicPage() {
                           >
                             <Trash2 size={12} />
                           </button>
-                        ) : null}
-                        <p className="w-14 text-right text-xs text-zinc-400">
+                        ) : (
+                          <span className="h-7 w-7" aria-hidden="true" />
+                        )}
+
+                        <p className="text-center text-xs text-zinc-400">
                           {track.duration}
                         </p>
+
                         <button
                           type="button"
                           onClick={(event) => {
