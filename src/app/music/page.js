@@ -1136,7 +1136,7 @@ export default function MusicPage() {
                             disabled={
                               !playlist.is_pinned && pinnedPlaylistCount >= 8
                             }
-                            className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                            className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity hover:text-amber-300 ${playlist.is_pinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
                             aria-label={
                               playlist.is_pinned
                                 ? `Unpin ${playlist.name}`
@@ -1178,7 +1178,7 @@ export default function MusicPage() {
                             onClick={() =>
                               handlePlaylistQueueAdd(playlist, scope)
                             }
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100"
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100 hover:text-blue-300"
                             aria-label={`Play ${playlist.name}`}
                             title={`Play ${playlist.name}`}
                           >
@@ -1223,7 +1223,7 @@ export default function MusicPage() {
                           onClick={() => {
                             handlePlaylistQueueAdd(playlist, "premade");
                           }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 hover:text-blue-300"
                           aria-label={`Play ${playlist.name}`}
                           title={`Play ${playlist.name}`}
                         >
@@ -1266,7 +1266,7 @@ export default function MusicPage() {
                           disabled={
                             !playlist.is_pinned && pinnedPlaylistCount >= 8
                           }
-                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100"}`}
+                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity hover:text-amber-300 ${playlist.is_pinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100"}`}
                           aria-label={
                             playlist.is_pinned
                               ? `Unpin ${playlist.name}`
@@ -1292,7 +1292,7 @@ export default function MusicPage() {
                             onClick={() =>
                               handleDeletePlaylist(playlist.id, playlist.name)
                             }
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-red-300"
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-300 hover:text-red-300"
                             aria-label={`Delete ${playlist.name}`}
                             title={`Delete ${playlist.name}`}
                           >
@@ -1303,7 +1303,7 @@ export default function MusicPage() {
                             onClick={() =>
                               handlePlaylistQueueAdd(playlist, "user")
                             }
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100"
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100 hover:text-blue-300"
                             aria-label={`Play ${playlist.name}`}
                             title={`Play ${playlist.name}`}
                           >
@@ -1393,7 +1393,7 @@ export default function MusicPage() {
                                   onClick={() =>
                                     handleOpenAddToPlaylistsSingle(track)
                                   }
-                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100"
+                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 hover:text-green-300"
                                   aria-label="Add to selected playlist"
                                   title="Add to playlists"
                                 >
@@ -1404,7 +1404,7 @@ export default function MusicPage() {
                                   onClick={() =>
                                     handlePriorityQueueAddSingle(track)
                                   }
-                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100"
+                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 hover:text-blue-300"
                                   aria-label={`Add ${track.title} to priority queue`}
                                   title="Add to priority queue"
                                 >
@@ -1466,7 +1466,7 @@ export default function MusicPage() {
                             });
                           }}
                           disabled={!item.isPinned && pinnedPlaylistCount >= 8}
-                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${item.isPinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity hover:text-amber-300 ${item.isPinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
                           aria-label={
                             item.isPinned
                               ? `Unpin ${item.title}`
@@ -1555,7 +1555,7 @@ export default function MusicPage() {
                               event.stopPropagation();
                               handlePriorityQueueAdd(track);
                             }}
-                            className="absolute flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100"
+                            className="absolute flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 hover:text-blue-300"
                             aria-label={`Add ${track.title} to priority queue`}
                             title="Add to priority queue"
                           >
@@ -1583,7 +1583,7 @@ export default function MusicPage() {
                                 track,
                               );
                             }}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-red-300 opacity-0 transition-opacity group-hover:opacity-100"
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
                             aria-label="Remove from selected private playlist"
                             title="Remove from playlist"
                           >
@@ -1603,7 +1603,7 @@ export default function MusicPage() {
                             event.stopPropagation();
                             handleOpenAddToPlaylists(track);
                           }}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 disabled:opacity-30"
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 hover:text-green-300 disabled:opacity-30"
                           aria-label="Add to selected playlist"
                           title="Add to playlists"
                         >
