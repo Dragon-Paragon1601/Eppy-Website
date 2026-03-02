@@ -1251,7 +1251,7 @@ export default function MusicPage() {
                           disabled={
                             !playlist.is_pinned && pinnedPlaylistCount >= 8
                           }
-                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-amber-500/70 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 disabled:opacity-30"}`}
+                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity ${playlist.is_pinned ? "border-zinc-700 bg-amber-500/15 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100"}`}
                           aria-label={
                             playlist.is_pinned
                               ? `Unpin ${playlist.name}`
