@@ -81,6 +81,8 @@ export default function MusicPage() {
   const [pendingDeletePlaylist, setPendingDeletePlaylist] = useState(null);
   const [queueTab, setQueueTab] = useState("queue");
   const [activeControlFlash, setActiveControlFlash] = useState("");
+  const [draggedQueueTrack, setDraggedQueueTrack] = useState(null);
+  const [queueDropTarget, setQueueDropTarget] = useState(null);
   const [draggedUserPlaylistId, setDraggedUserPlaylistId] = useState(null);
   const [draggedUserPlaylistPinned, setDraggedUserPlaylistPinned] =
     useState(null);
@@ -430,7 +432,8 @@ export default function MusicPage() {
         ...track,
         isPriority: true,
         priorityIndex: index + 1,
-        id: track.path || `p-${index}`,
+        sourceIndex: index,
+        id: `${track.path || `p-${index}`}-priority-${index}`,
       }),
     );
     const regularQueue = musicState.queue || [];
@@ -458,7 +461,8 @@ export default function MusicPage() {
     ).map((track, index) => ({
       ...track,
       isPriority: false,
-      id: track.path || `q-${index}`,
+      sourceIndex: shouldSkipFirstQueueItem ? index + 1 : index,
+      id: `${track.path || `q-${index}`}-queue-${shouldSkipFirstQueueItem ? index + 1 : index}`,
     }));
 
     return [...priorityItems, ...regularItems];
@@ -1001,6 +1005,119 @@ export default function MusicPage() {
       is_priority: track.isPriority === true,
     });
   };
+
+  const resetQueueDragState = useCallback(() => {
+    setDraggedQueueTrack(null);
+    setQueueDropTarget(null);
+  }, []);
+
+  const canQueueDropOnTrack = useCallback(
+    (track) => {
+      if (!track || !draggedQueueTrack) return false;
+      if (queueTab !== "queue") return false;
+
+      return (
+        Boolean(track.isPriority) === Boolean(draggedQueueTrack.isPriority)
+      );
+    },
+    [draggedQueueTrack, queueTab],
+  );
+
+  const handleQueueDragStart = useCallback(
+    (event, track) => {
+      if (queueTab !== "queue" || !track) return;
+
+      setDraggedQueueTrack({
+        isPriority: Boolean(track.isPriority),
+        sourceIndex: Number(track.sourceIndex),
+      });
+
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(track.id || "queue"));
+    },
+    [queueTab],
+  );
+
+  const handleQueueDragOver = useCallback(
+    (event, track) => {
+      if (!canQueueDropOnTrack(track)) return;
+
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const midpoint = bounds.top + bounds.height / 2;
+      const position = event.clientY >= midpoint ? "after" : "before";
+
+      setQueueDropTarget({
+        sourceIndex: Number(track.sourceIndex),
+        isPriority: Boolean(track.isPriority),
+        position,
+      });
+    },
+    [canQueueDropOnTrack],
+  );
+
+  const handleQueueDragLeave = useCallback((event, track) => {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget && event.currentTarget.contains(nextTarget)) {
+      return;
+    }
+
+    setQueueDropTarget((current) => {
+      if (
+        !current ||
+        Number(current.sourceIndex) !== Number(track?.sourceIndex) ||
+        Boolean(current.isPriority) !== Boolean(track?.isPriority)
+      ) {
+        return current;
+      }
+
+      return null;
+    });
+  }, []);
+
+  const handleQueueDrop = useCallback(
+    async (event, track) => {
+      event.preventDefault();
+
+      if (!canQueueDropOnTrack(track) || !draggedQueueTrack) {
+        resetQueueDragState();
+        return;
+      }
+
+      const fromIndex = Number(draggedQueueTrack.sourceIndex);
+      const targetIndex = Number(track.sourceIndex);
+      const position =
+        queueDropTarget &&
+        Number(queueDropTarget.sourceIndex) === targetIndex &&
+        Boolean(queueDropTarget.isPriority) === Boolean(track.isPriority)
+          ? queueDropTarget.position
+          : "before";
+
+      let toIndex = position === "after" ? targetIndex + 1 : targetIndex;
+      if (fromIndex < toIndex) {
+        toIndex -= 1;
+      }
+
+      resetQueueDragState();
+
+      if (fromIndex === toIndex) return;
+
+      await sendAction("reorder_queue_track", {
+        is_priority: Boolean(track.isPriority),
+        from_index: fromIndex,
+        to_index: toIndex,
+      });
+    },
+    [
+      canQueueDropOnTrack,
+      draggedQueueTrack,
+      queueDropTarget,
+      resetQueueDragState,
+      sendAction,
+    ],
+  );
 
   const handleClearCurrentQueue = () => {
     sendAction("clear_queue");
@@ -2000,11 +2117,42 @@ export default function MusicPage() {
 
               <div className="max-h-[27rem] space-y-2 overflow-y-auto pr-1">
                 {currentQueueItems.map((track, index) => {
+                  const isDraggedQueueTrack =
+                    draggedQueueTrack &&
+                    Number(draggedQueueTrack.sourceIndex) ===
+                      Number(track.sourceIndex) &&
+                    Boolean(draggedQueueTrack.isPriority) ===
+                      Boolean(track.isPriority);
+
+                  const isQueueDropTarget =
+                    queueDropTarget &&
+                    Number(queueDropTarget.sourceIndex) ===
+                      Number(track.sourceIndex) &&
+                    Boolean(queueDropTarget.isPriority) ===
+                      Boolean(track.isPriority) &&
+                    canQueueDropOnTrack(track);
+
                   return (
                     <div
                       key={`${track.id}-${index}-${queueTab}`}
-                      className={`group rounded-md border px-2 py-2 ${track.isPriority && queueTab === "queue" ? `${ACCENT_BORDER_CLASS} bg-blue-500/10 hover:bg-blue-500/15` : "border-zinc-700 bg-zinc-900 hover:bg-zinc-800"}`}
+                      draggable={queueTab === "queue"}
+                      onDragStart={(event) =>
+                        handleQueueDragStart(event, track)
+                      }
+                      onDragOver={(event) => handleQueueDragOver(event, track)}
+                      onDragLeave={(event) =>
+                        handleQueueDragLeave(event, track)
+                      }
+                      onDrop={(event) => handleQueueDrop(event, track)}
+                      onDragEnd={resetQueueDragState}
+                      className={`group relative rounded-md border px-2 py-2 transition ${queueTab === "queue" ? "cursor-grab active:cursor-grabbing" : ""} ${isDraggedQueueTrack ? "z-20 scale-[1.01] border-cyan-400/60 bg-zinc-800 shadow-lg shadow-cyan-500/20" : ""} ${track.isPriority && queueTab === "queue" ? `${ACCENT_BORDER_CLASS} bg-blue-500/10 hover:bg-blue-500/15` : "border-zinc-700 bg-zinc-900 hover:bg-zinc-800"}`}
                     >
+                      {isQueueDropTarget ? (
+                        <span
+                          className={`pointer-events-none absolute left-1 right-1 z-30 h-0.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.75)] ${queueDropTarget?.position === "after" ? "-bottom-1" : "-top-1"}`}
+                          aria-hidden="true"
+                        />
+                      ) : null}
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-sm text-zinc-100">

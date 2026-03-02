@@ -21,6 +21,7 @@ const ALLOWED_ACTIONS = new Set([
   "enqueue_playlist",
   "enqueue_playlists",
   "jump_to_queue_track",
+  "reorder_queue_track",
   "remove_priority",
   "remove_queue",
   "clear_queue",
@@ -407,6 +408,8 @@ export async function POST(request) {
     dragged_playlist_id: body?.dragged_playlist_id || null,
     target_playlist_id: body?.target_playlist_id || null,
     drop_position: body?.drop_position || null,
+    from_index: body?.from_index,
+    to_index: body?.to_index,
   };
 
   if (action === "reorder_user_playlist") {
