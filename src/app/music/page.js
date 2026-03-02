@@ -934,7 +934,7 @@ export default function MusicPage() {
             <button
               type="button"
               onClick={() => setIsServerPickerOpen((prev) => !prev)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900/85 px-3 py-2 text-left"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-900/85 px-3 py-2 text-left transition hover:border-zinc-500 hover:bg-zinc-900"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -1009,7 +1009,7 @@ export default function MusicPage() {
                 <button
                   type="button"
                   onClick={() => setIsCreatePlaylistOpen((current) => !current)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:text-green-300"
                   title="Create private playlist"
                 >
                   <Plus size={14} />
@@ -1060,10 +1060,10 @@ export default function MusicPage() {
             <div className="max-h-[32rem] overflow-y-auto overflow-x-hidden pr-2 [scrollbar-gutter:stable]">
               {isPlaylistSearchOpen ? (
                 <div className="mb-3 flex items-center gap-2">
-                  <div className="relative flex-1">
+                  <div className="relative flex-1 group">
                     <Search
                       size={14}
-                      className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500"
+                      className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 transition group-hover:text-cyan-100"
                     />
                     <input
                       value={playlistSearchValue}
@@ -1071,7 +1071,7 @@ export default function MusicPage() {
                         setPlaylistSearchValue(event.target.value)
                       }
                       placeholder="Search all playlists"
-                      className="w-full rounded-md border border-zinc-700 bg-zinc-950 py-1.5 pl-7 pr-2 text-xs text-zinc-100 placeholder:text-zinc-500"
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-950 py-1.5 pl-7 pr-2 text-xs text-zinc-100 placeholder:text-zinc-500 hover:border-cyan-200/40"
                     />
                   </div>
                   <button
@@ -1080,7 +1080,7 @@ export default function MusicPage() {
                       setIsPlaylistSearchOpen(false);
                       setPlaylistSearchValue("");
                     }}
-                    className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 hover:bg-zinc-800"
+                    className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-red-300"
                   >
                     Cancel
                   </button>
@@ -1091,7 +1091,7 @@ export default function MusicPage() {
                   <button
                     type="button"
                     onClick={() => setIsPlaylistSearchOpen(true)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-cyan-100"
                     title="Search playlists"
                     aria-label="Search playlists"
                   >
@@ -1107,7 +1107,7 @@ export default function MusicPage() {
                     return (
                       <div
                         key={`${scope}:${playlist.id || playlist.name}`}
-                        className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, scope)) ? "border-green-500/70 bg-green-500/10" : scope === "user" && selectedUserPlaylistId === playlist.id ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
+                        className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, scope)) ? "border-green-500/70 bg-green-500/10" : (scope === "user" && selectedUserPlaylistId === playlist.id) || (scope === "premade" && browseView === "playlist" && !selectedUserPlaylistId && selectedPlaylistName === playlist.name) ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
                       >
                         <button
                           type="button"
@@ -1201,7 +1201,7 @@ export default function MusicPage() {
                     {filteredPremadePlaylists.map((playlist) => (
                       <div
                         key={playlist.id}
-                        className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, "premade")) ? "border-green-500/70 bg-green-500/10" : "border-zinc-700 bg-zinc-900"}`}
+                        className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, "premade")) ? "border-green-500/70 bg-green-500/10" : browseView === "playlist" && !selectedUserPlaylistId && selectedPlaylistName === playlist.name ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
                       >
                         <button
                           type="button"
@@ -1339,22 +1339,22 @@ export default function MusicPage() {
                 <button
                   type="button"
                   onClick={handleBackToHome}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 hover:text-blue-300"
                   aria-label="Back to music home"
                 >
                   <ArrowLeft size={16} />
                 </button>
 
-                <div className="relative">
+                <div className="relative group">
                   <Search
                     size={15}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 transition group-hover:text-cyan-100"
                   />
                   <input
                     value={searchValue}
                     onChange={(event) => handleSearchInput(event.target.value)}
                     placeholder="Search songs or artists"
-                    className={`w-full rounded-full border border-zinc-700 bg-zinc-950 py-2 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-blue-500 ${isSearchOpen ? "ring-1 ring-blue-500/50" : ""}`}
+                    className={`w-full rounded-full border border-zinc-700 bg-zinc-950 py-2 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-blue-500 hover:border-cyan-200/40 ${isSearchOpen ? "ring-1 ring-blue-500/50" : ""}`}
                   />
 
                   {isSearchOpen ? (
@@ -1432,7 +1432,7 @@ export default function MusicPage() {
                     setSelectedTrackKeys([]);
                     setSelectedPlaylistKeys([]);
                   }}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 hover:text-amber-300"
                   aria-label="Open full library"
                   title="All library tracks"
                 >
@@ -1518,7 +1518,7 @@ export default function MusicPage() {
                     <select
                       value={sortBy}
                       onChange={(event) => setSortBy(event.target.value)}
-                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200"
+                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 hover:border-zinc-500 hover:bg-zinc-900"
                     >
                       <option value="number">Sort: number</option>
                       <option value="artist">Sort: artist</option>
@@ -1529,7 +1529,7 @@ export default function MusicPage() {
                     <select
                       value={sortDirection}
                       onChange={(event) => setSortDirection(event.target.value)}
-                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200"
+                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 hover:border-zinc-500 hover:bg-zinc-900"
                     >
                       <option value="asc">Ascending</option>
                       <option value="desc">Descending</option>
@@ -1797,14 +1797,14 @@ export default function MusicPage() {
                   <button
                     type="button"
                     onClick={() => setQueueTab("queue")}
-                    className={`pb-1 text-xs transition ${queueTab === "queue" ? `${ACCENT_CLASS} border-b ${ACCENT_BORDER_CLASS}` : "text-zinc-400 border-b border-transparent"}`}
+                    className={`pb-1 px-1 text-xs transition ${queueTab === "queue" ? `${ACCENT_CLASS} border-b ${ACCENT_BORDER_CLASS}` : "text-zinc-400 border-b border-transparent hover:bg-zinc-800/60 hover:text-zinc-200"}`}
                   >
                     Queue
                   </button>
                   <button
                     type="button"
                     onClick={() => setQueueTab("previous")}
-                    className={`pb-1 text-xs transition ${queueTab === "previous" ? `${ACCENT_CLASS} border-b ${ACCENT_BORDER_CLASS}` : "text-zinc-400 border-b border-transparent"}`}
+                    className={`pb-1 px-1 text-xs transition ${queueTab === "previous" ? `${ACCENT_CLASS} border-b ${ACCENT_BORDER_CLASS}` : "text-zinc-400 border-b border-transparent hover:bg-zinc-800/60 hover:text-zinc-200"}`}
                   >
                     Previously played
                   </button>
@@ -1829,7 +1829,7 @@ export default function MusicPage() {
                   return (
                     <div
                       key={`${track.id}-${index}-${queueTab}`}
-                      className={`group rounded-md border px-2 py-2 ${track.isPriority && queueTab === "queue" ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
+                      className={`group rounded-md border px-2 py-2 ${track.isPriority && queueTab === "queue" ? `${ACCENT_BORDER_CLASS} bg-blue-500/10 hover:bg-blue-500/15` : "border-zinc-700 bg-zinc-900 hover:bg-zinc-800"}`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
