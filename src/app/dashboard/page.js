@@ -77,7 +77,7 @@ export default function Dashboard() {
   const [rolesByGuild, setRolesByGuild] = useState({});
   const [settingsByGuild, setSettingsByGuild] = useState({});
   const [selectedGuildId, setSelectedGuildId] = useState("");
-  const [isServerListOpen, setIsServerListOpen] = useState(true);
+  const [isServerListOpen, setIsServerListOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_SETTINGS);
   const [saveState, setSaveState] = useState({ type: "", message: "" });
 
@@ -165,6 +165,24 @@ export default function Dashboard() {
       });
   }, [session]);
 
+  useEffect(() => {
+    if (!isServerListOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsServerListOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isServerListOpen]);
+
   const selectedGuild = useMemo(
     () => servers.find((server) => server.guild_id === selectedGuildId),
     [servers, selectedGuildId],
@@ -189,6 +207,7 @@ export default function Dashboard() {
     setSelectedGuildId(guildId);
     setForm(settingsByGuild[guildId] || EMPTY_SETTINGS);
     setSaveState({ type: "", message: "" });
+    setIsServerListOpen(false);
   };
 
   const handleFieldChange = (field, value) => {
@@ -333,86 +352,144 @@ export default function Dashboard() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             <div className="bg-zinc-900/80 border border-zinc-700 rounded-xl p-4 lg:col-span-1">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="font-semibold">Select server</p>
-                {servers.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsServerListOpen((prev) => !prev)}
-                    className="px-2 py-1 rounded-md border border-zinc-700 bg-zinc-950 text-xs text-zinc-200 hover:bg-zinc-900"
-                  >
-                    {isServerListOpen ? "Hide list" : "Show list"}
-                  </button>
-                ) : null}
-              </div>
+              <p className="block mb-2 font-semibold">Select server</p>
 
               {servers.length === 0 ? (
                 <div className="w-full p-3 rounded-md bg-zinc-950 border border-zinc-700 text-sm text-zinc-400">
                   No shared servers with bot
                 </div>
-              ) : !isServerListOpen ? (
-                <div className="w-full p-3 rounded-md bg-zinc-950 border border-zinc-700 text-sm text-zinc-200">
-                  {selectedGuild
-                    ? `Selected: ${selectedGuild.guild_name}`
-                    : "No server selected"}
-                </div>
               ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {servers.map((server) => {
-                    const isSelected = selectedGuildId === server.guild_id;
+                <div className="relative">
+                  {isServerListOpen ? (
+                    <button
+                      type="button"
+                      aria-label="Close server list"
+                      onClick={() => setIsServerListOpen(false)}
+                      className="fixed inset-0 z-20 bg-black/20"
+                    />
+                  ) : null}
 
-                    return (
-                      <button
-                        key={server.guild_id}
-                        type="button"
-                        onClick={() => handleGuildChange(server.guild_id)}
-                        className={`w-full rounded-md border px-3 py-2 text-left transition ${
-                          isSelected
-                            ? "border-violet-500 bg-violet-500/10"
-                            : "border-zinc-700 bg-zinc-950 hover:bg-zinc-900"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {server.guild_icon ? (
+                  <div className="relative z-30">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIsServerListOpen((prev) =>
+                          servers.length > 1 ? !prev : prev,
+                        )
+                      }
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-left hover:bg-zinc-900"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {selectedGuild?.guild_icon ? (
                             <Image
-                              src={server.guild_icon}
-                              alt={server.guild_name}
+                              src={selectedGuild.guild_icon}
+                              alt={selectedGuild.guild_name}
                               width={28}
                               height={28}
                               className={`rounded-full border border-zinc-600 ${
-                                server.can_edit ? "" : "opacity-45"
+                                selectedGuild.can_edit ? "" : "opacity-45"
                               }`}
                             />
                           ) : (
                             <div
                               className={`w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold ${
-                                server.can_edit ? "" : "opacity-45"
+                                selectedGuild?.can_edit ? "" : "opacity-45"
                               }`}
                             >
-                              {server.guild_name?.[0] || "?"}
+                              {selectedGuild?.guild_name?.[0] || "?"}
                             </div>
                           )}
 
                           <div className="min-w-0">
                             <p
                               className={`truncate text-sm ${
-                                server.can_edit
+                                selectedGuild?.can_edit
                                   ? "text-zinc-100"
                                   : "text-zinc-500"
                               }`}
                             >
-                              {server.guild_name}
+                              {selectedGuild?.guild_name ||
+                                "No server selected"}
                             </p>
-                            {!server.can_edit ? (
+                            {!selectedGuild?.can_edit ? (
                               <p className="text-[11px] leading-tight text-zinc-500">
                                 no permissions
                               </p>
                             ) : null}
                           </div>
                         </div>
-                      </button>
-                    );
-                  })}
+
+                        <span
+                          className={`text-xs text-zinc-300 transition-transform ${
+                            isServerListOpen ? "rotate-180" : ""
+                          }`}
+                        >
+                          ▼
+                        </span>
+                      </div>
+                    </button>
+
+                    {isServerListOpen ? (
+                      <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 rounded-md border border-zinc-700 bg-zinc-950/95 p-2 shadow-lg backdrop-blur-sm animate-in slide-in-from-top-2 duration-150">
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                          {servers
+                            .filter(
+                              (server) => server.guild_id !== selectedGuildId,
+                            )
+                            .map((server) => (
+                              <button
+                                key={server.guild_id}
+                                type="button"
+                                onClick={() =>
+                                  handleGuildChange(server.guild_id)
+                                }
+                                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-left transition hover:bg-zinc-900"
+                              >
+                                <div className="flex items-center gap-3">
+                                  {server.guild_icon ? (
+                                    <Image
+                                      src={server.guild_icon}
+                                      alt={server.guild_name}
+                                      width={28}
+                                      height={28}
+                                      className={`rounded-full border border-zinc-600 ${
+                                        server.can_edit ? "" : "opacity-45"
+                                      }`}
+                                    />
+                                  ) : (
+                                    <div
+                                      className={`w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold ${
+                                        server.can_edit ? "" : "opacity-45"
+                                      }`}
+                                    >
+                                      {server.guild_name?.[0] || "?"}
+                                    </div>
+                                  )}
+
+                                  <div className="min-w-0">
+                                    <p
+                                      className={`truncate text-sm ${
+                                        server.can_edit
+                                          ? "text-zinc-100"
+                                          : "text-zinc-500"
+                                      }`}
+                                    >
+                                      {server.guild_name}
+                                    </p>
+                                    {!server.can_edit ? (
+                                      <p className="text-[11px] leading-tight text-zinc-500">
+                                        no permissions
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               )}
 
