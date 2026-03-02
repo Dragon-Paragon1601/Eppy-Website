@@ -30,6 +30,7 @@ const ALLOWED_ACTIONS = new Set([
   "remove_track_from_user_playlist",
   "pin_user_playlist",
   "unpin_user_playlist",
+  "reorder_user_playlist",
 ]);
 
 const TABLE_DEFINITIONS = [
@@ -64,6 +65,10 @@ const TABLE_DEFINITIONS = [
   {
     table: "guild_user_music_recent_playlists",
     sql: "CREATE TABLE IF NOT EXISTS guild_user_music_recent_playlists (guild_id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NOT NULL, playlist_id BIGINT UNSIGNED NOT NULL, last_played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, play_count INT UNSIGNED NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id, playlist_id), KEY idx_guild_user_recent_playlists_order (guild_id, user_id, last_played_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+  {
+    table: "guild_user_music_playlist_orders",
+    sql: "CREATE TABLE IF NOT EXISTS guild_user_music_playlist_orders (guild_id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NOT NULL, playlist_id BIGINT UNSIGNED NOT NULL, sort_index INT UNSIGNED NOT NULL DEFAULT 0, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (guild_id, user_id, playlist_id), KEY idx_guild_user_playlist_orders (guild_id, user_id, sort_index)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
   },
 ];
 
@@ -259,8 +264,8 @@ export async function GET(request) {
     .sort((left, right) => left.name.localeCompare(right.name));
 
   const [playlistRows] = await promisePool.query(
-    "SELECT p.id, p.name, p.created_by, p.created_at, COUNT(pt.track_key) AS songs FROM guild_music_playlists p LEFT JOIN guild_music_playlist_tracks pt ON pt.playlist_id = p.id WHERE p.guild_id = ? AND p.created_by = ? GROUP BY p.id, p.name, p.created_by, p.created_at ORDER BY p.created_at DESC",
-    [guildId, session.user.id],
+    "SELECT p.id, p.name, p.created_by, p.created_at, o.sort_index AS playlist_order, COUNT(pt.track_key) AS songs FROM guild_music_playlists p LEFT JOIN guild_user_music_playlist_orders o ON o.guild_id = p.guild_id AND o.user_id = ? AND o.playlist_id = p.id LEFT JOIN guild_music_playlist_tracks pt ON pt.playlist_id = p.id WHERE p.guild_id = ? AND p.created_by = ? GROUP BY p.id, p.name, p.created_by, p.created_at, o.sort_index ORDER BY CASE WHEN o.sort_index IS NULL THEN 1 ELSE 0 END ASC, o.sort_index ASC, p.created_at DESC",
+    [session.user.id, guildId, session.user.id],
   );
 
   const [pinRows] = await promisePool.query(
@@ -306,6 +311,11 @@ export async function GET(request) {
     name: playlist.name,
     songs: Number(playlist.songs || 0),
     owner: playlist.created_by === session.user.id ? "You" : "Shared",
+    created_at: playlist.created_at || null,
+    playlist_order:
+      playlist.playlist_order === null || playlist.playlist_order === undefined
+        ? null
+        : Number(playlist.playlist_order),
     is_pinned: pinnedByPlaylistId.has(String(playlist.id)),
     pinned_at: pinnedByPlaylistId.get(String(playlist.id)) || null,
     tracks: tracksByPlaylist.get(playlist.id) || [],
@@ -394,7 +404,126 @@ export async function POST(request) {
     playlist_id: body?.playlist_id || null,
     playlist_name: body?.playlist_name || null,
     playlist_scope: body?.playlist_scope || null,
+    dragged_playlist_id: body?.dragged_playlist_id || null,
+    target_playlist_id: body?.target_playlist_id || null,
+    drop_position: body?.drop_position || null,
   };
+
+  if (action === "reorder_user_playlist") {
+    const draggedPlaylistId = toPositiveInt(payload.dragged_playlist_id);
+    const targetPlaylistId = toPositiveInt(payload.target_playlist_id);
+    const dropPosition =
+      String(payload.drop_position || "").toLowerCase() === "after"
+        ? "after"
+        : "before";
+
+    if (!draggedPlaylistId || !targetPlaylistId) {
+      return jsonResponse(
+        { error: "dragged_playlist_id and target_playlist_id are required" },
+        400,
+      );
+    }
+
+    if (draggedPlaylistId === targetPlaylistId) {
+      return jsonResponse({ ok: true });
+    }
+
+    const draggedEditable = await canEditPlaylist(
+      draggedPlaylistId,
+      guildId,
+      session.user.id,
+    );
+    const targetEditable = await canEditPlaylist(
+      targetPlaylistId,
+      guildId,
+      session.user.id,
+    );
+
+    if (!draggedEditable || !targetEditable) {
+      return jsonResponse({ error: "You cannot edit this playlist" }, 403);
+    }
+
+    const [pinStateRows] = await promisePool.query(
+      "SELECT p.id, CASE WHEN pins.playlist_id IS NULL THEN 0 ELSE 1 END AS is_pinned FROM guild_music_playlists p LEFT JOIN guild_user_music_playlist_pins pins ON pins.guild_id = p.guild_id AND pins.user_id = ? AND pins.playlist_id = p.id WHERE p.guild_id = ? AND p.created_by = ? AND p.id IN (?, ?)",
+      [
+        session.user.id,
+        guildId,
+        session.user.id,
+        draggedPlaylistId,
+        targetPlaylistId,
+      ],
+    );
+
+    if (pinStateRows.length !== 2) {
+      return jsonResponse({ error: "Playlists not found" }, 404);
+    }
+
+    const pinnedById = new Map(
+      pinStateRows.map((rowPin) => [Number(rowPin.id), Number(rowPin.is_pinned)]),
+    );
+
+    const draggedPinned = pinnedById.get(draggedPlaylistId) === 1;
+    const targetPinned = pinnedById.get(targetPlaylistId) === 1;
+
+    if (draggedPinned !== targetPinned) {
+      return jsonResponse(
+        {
+          error:
+            "Pinned playlists can only be reordered with pinned playlists, and unpinned with unpinned.",
+        },
+        409,
+      );
+    }
+
+    const pinnedFlag = draggedPinned ? 1 : 0;
+    const [groupRows] = await promisePool.query(
+      "SELECT p.id, p.created_at, pins.pinned_at, o.sort_index FROM guild_music_playlists p LEFT JOIN guild_user_music_playlist_pins pins ON pins.guild_id = p.guild_id AND pins.user_id = ? AND pins.playlist_id = p.id LEFT JOIN guild_user_music_playlist_orders o ON o.guild_id = p.guild_id AND o.user_id = ? AND o.playlist_id = p.id WHERE p.guild_id = ? AND p.created_by = ? AND ((? = 1 AND pins.playlist_id IS NOT NULL) OR (? = 0 AND pins.playlist_id IS NULL)) ORDER BY CASE WHEN o.sort_index IS NULL THEN 1 ELSE 0 END ASC, o.sort_index ASC, CASE WHEN ? = 1 THEN pins.pinned_at ELSE NULL END ASC, CASE WHEN ? = 0 THEN p.created_at ELSE NULL END DESC",
+      [
+        session.user.id,
+        session.user.id,
+        guildId,
+        session.user.id,
+        pinnedFlag,
+        pinnedFlag,
+        pinnedFlag,
+        pinnedFlag,
+      ],
+    );
+
+    const orderedIds = groupRows.map((rowGroup) => Number(rowGroup.id));
+    const fromIndex = orderedIds.indexOf(draggedPlaylistId);
+    const targetIndex = orderedIds.indexOf(targetPlaylistId);
+
+    if (fromIndex === -1 || targetIndex === -1) {
+      return jsonResponse({ error: "Invalid reorder target" }, 400);
+    }
+
+    const [draggedId] = orderedIds.splice(fromIndex, 1);
+    const targetInsertIndex = orderedIds.indexOf(targetPlaylistId);
+    const insertIndex =
+      dropPosition === "after" ? targetInsertIndex + 1 : targetInsertIndex;
+    orderedIds.splice(insertIndex, 0, draggedId);
+
+    if (!orderedIds.length) {
+      return jsonResponse({ ok: true });
+    }
+
+    const upsertValues = orderedIds.flatMap((playlistId, index) => [
+      guildId,
+      session.user.id,
+      playlistId,
+      index + 1,
+    ]);
+
+    await promisePool.query(
+      `INSERT INTO guild_user_music_playlist_orders (guild_id, user_id, playlist_id, sort_index)
+       VALUES ${orderedIds.map(() => "(?, ?, ?, ?)").join(",")}
+       ON DUPLICATE KEY UPDATE sort_index = VALUES(sort_index), updated_at = CURRENT_TIMESTAMP`,
+      upsertValues,
+    );
+
+    return jsonResponse({ ok: true });
+  }
 
   if (action === "enqueue_playlist") {
     const playlistId = toPositiveInt(payload.playlist_id);

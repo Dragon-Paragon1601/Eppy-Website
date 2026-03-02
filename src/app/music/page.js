@@ -43,6 +43,12 @@ function durationToSeconds(duration) {
   return minutes * 60 + seconds;
 }
 
+function getPlaylistOrderValue(playlist) {
+  const parsed = Number(playlist?.playlist_order);
+  if (!Number.isInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
 export default function MusicPage() {
   const { data: session } = useSession();
   const [servers, setServers] = useState([]);
@@ -75,6 +81,12 @@ export default function MusicPage() {
   const [pendingDeletePlaylist, setPendingDeletePlaylist] = useState(null);
   const [queueTab, setQueueTab] = useState("queue");
   const [activeControlFlash, setActiveControlFlash] = useState("");
+  const [draggedUserPlaylistId, setDraggedUserPlaylistId] = useState(null);
+  const [draggedUserPlaylistPinned, setDraggedUserPlaylistPinned] =
+    useState(null);
+  const [dropTargetUserPlaylistId, setDropTargetUserPlaylistId] =
+    useState(null);
+  const [dropTargetPosition, setDropTargetPosition] = useState("before");
 
   useEffect(() => {
     if (!session) return;
@@ -162,16 +174,45 @@ export default function MusicPage() {
     () =>
       userPlaylists
         .filter((playlist) => playlist.is_pinned)
-        .sort(
-          (left, right) =>
+        .sort((left, right) => {
+          const leftOrder = getPlaylistOrderValue(left);
+          const rightOrder = getPlaylistOrderValue(right);
+
+          if (leftOrder !== null && rightOrder !== null) {
+            return leftOrder - rightOrder;
+          }
+
+          if (leftOrder !== null) return -1;
+          if (rightOrder !== null) return 1;
+
+          return (
             new Date(left.pinned_at || 0).getTime() -
-            new Date(right.pinned_at || 0).getTime(),
-        ),
+            new Date(right.pinned_at || 0).getTime()
+          );
+        }),
     [userPlaylists],
   );
 
   const unpinnedUserPlaylists = useMemo(
-    () => userPlaylists.filter((playlist) => !playlist.is_pinned),
+    () =>
+      userPlaylists
+        .filter((playlist) => !playlist.is_pinned)
+        .sort((left, right) => {
+          const leftOrder = getPlaylistOrderValue(left);
+          const rightOrder = getPlaylistOrderValue(right);
+
+          if (leftOrder !== null && rightOrder !== null) {
+            return leftOrder - rightOrder;
+          }
+
+          if (leftOrder !== null) return -1;
+          if (rightOrder !== null) return 1;
+
+          return (
+            new Date(right.created_at || 0).getTime() -
+            new Date(left.created_at || 0).getTime()
+          );
+        }),
     [userPlaylists],
   );
 
@@ -571,6 +612,98 @@ export default function MusicPage() {
       playlist_id: playlist.id,
     });
   };
+
+  const resetUserPlaylistDragState = useCallback(() => {
+    setDraggedUserPlaylistId(null);
+    setDraggedUserPlaylistPinned(null);
+    setDropTargetUserPlaylistId(null);
+    setDropTargetPosition("before");
+  }, []);
+
+  const canDropOnUserPlaylist = useCallback(
+    (targetPlaylist) => {
+      if (!targetPlaylist || !draggedUserPlaylistId) return false;
+      if (Number(targetPlaylist.id) === Number(draggedUserPlaylistId)) {
+        return false;
+      }
+
+      return Boolean(targetPlaylist.is_pinned) === draggedUserPlaylistPinned;
+    },
+    [draggedUserPlaylistId, draggedUserPlaylistPinned],
+  );
+
+  const handleUserPlaylistDragStart = useCallback((event, playlist) => {
+    if (!playlist?.id) return;
+
+    setDraggedUserPlaylistId(Number(playlist.id));
+    setDraggedUserPlaylistPinned(Boolean(playlist.is_pinned));
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(playlist.id));
+  }, []);
+
+  const handleUserPlaylistDragOver = useCallback(
+    (event, targetPlaylist) => {
+      if (!canDropOnUserPlaylist(targetPlaylist)) return;
+
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const midpoint = bounds.top + bounds.height / 2;
+      const position = event.clientY >= midpoint ? "after" : "before";
+
+      setDropTargetUserPlaylistId(Number(targetPlaylist.id));
+      setDropTargetPosition(position);
+    },
+    [canDropOnUserPlaylist],
+  );
+
+  const handleUserPlaylistDragLeave = useCallback(
+    (event, targetPlaylist) => {
+      const nextTarget = event.relatedTarget;
+      if (nextTarget && event.currentTarget.contains(nextTarget)) {
+        return;
+      }
+
+      if (Number(targetPlaylist?.id) === Number(dropTargetUserPlaylistId)) {
+        setDropTargetUserPlaylistId(null);
+      }
+    },
+    [dropTargetUserPlaylistId],
+  );
+
+  const handleUserPlaylistDrop = useCallback(
+    async (event, targetPlaylist) => {
+      event.preventDefault();
+
+      if (!canDropOnUserPlaylist(targetPlaylist) || !draggedUserPlaylistId) {
+        resetUserPlaylistDragState();
+        return;
+      }
+
+      const draggedPlaylistId = Number(draggedUserPlaylistId);
+      const targetPlaylistId = Number(targetPlaylist.id);
+      const position =
+        Number(dropTargetUserPlaylistId) === targetPlaylistId
+          ? dropTargetPosition
+          : "before";
+
+      resetUserPlaylistDragState();
+      await sendAction("reorder_user_playlist", {
+        dragged_playlist_id: draggedPlaylistId,
+        target_playlist_id: targetPlaylistId,
+        drop_position: position,
+      });
+    },
+    [
+      canDropOnUserPlaylist,
+      draggedUserPlaylistId,
+      dropTargetPosition,
+      dropTargetUserPlaylistId,
+      resetUserPlaylistDragState,
+      sendAction,
+    ],
+  );
 
   const handleAddTrackToSelectedPlaylist = (track) => {
     if (!selectedUserPlaylistId || !track?.track_key) return;
@@ -1247,81 +1380,112 @@ export default function MusicPage() {
                     <span>Your playlists</span>
                   </p>
                   <div className="space-y-2">
-                    {filteredUserPlaylists.map((playlist) => (
-                      <div
-                        key={playlist.id}
-                        className={`group relative rounded-md border px-2 py-2 hover:bg-zinc-800 ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, "user")) ? "border-green-500/70 bg-green-500/10" : selectedUserPlaylistId === playlist.id ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
-                      >
-                        <button
-                          type="button"
-                          onClick={(event) =>
-                            handlePlaylistCardClick(event, playlist, "user")
-                          }
-                          className="w-full pr-9 text-left"
-                        >
-                          <p className="truncate text-sm text-zinc-100">
-                            {playlist.name}
-                          </p>
-                          <p className="text-[11px] text-zinc-400">
-                            owner: {playlist.owner} • {playlist.songs} tracks
-                          </p>
-                        </button>
+                    {filteredUserPlaylists.map((playlist) => {
+                      const isDragged =
+                        Number(draggedUserPlaylistId) === Number(playlist.id);
+                      const isDropTarget =
+                        Number(dropTargetUserPlaylistId) ===
+                          Number(playlist.id) &&
+                        canDropOnUserPlaylist(playlist);
 
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleTogglePlaylistPin(playlist);
-                          }}
-                          disabled={
-                            !playlist.is_pinned && pinnedPlaylistCount >= 8
+                      return (
+                        <div
+                          key={playlist.id}
+                          draggable
+                          onDragStart={(event) =>
+                            handleUserPlaylistDragStart(event, playlist)
                           }
-                          className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity hover:text-amber-300 ${playlist.is_pinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100"}`}
-                          aria-label={
-                            playlist.is_pinned
-                              ? `Unpin ${playlist.name}`
-                              : `Pin ${playlist.name}`
+                          onDragOver={(event) =>
+                            handleUserPlaylistDragOver(event, playlist)
                           }
-                          title={
-                            playlist.is_pinned
-                              ? "Pinned playlist"
-                              : pinnedPlaylistCount >= 8
-                                ? "Pin limit reached (8)"
-                                : "Pin playlist"
+                          onDragLeave={(event) =>
+                            handleUserPlaylistDragLeave(event, playlist)
                           }
+                          onDrop={(event) =>
+                            handleUserPlaylistDrop(event, playlist)
+                          }
+                          onDragEnd={resetUserPlaylistDragState}
+                          className={`group relative cursor-grab rounded-md border px-2 py-2 transition hover:bg-zinc-800 active:cursor-grabbing ${isDragged ? "z-20 scale-[1.015] border-cyan-400/60 bg-zinc-800 shadow-lg shadow-cyan-500/20" : ""} ${selectedPlaylistKeys.includes(toPlaylistKey(playlist, "user")) ? "border-green-500/70 bg-green-500/10" : selectedUserPlaylistId === playlist.id ? `${ACCENT_BORDER_CLASS} bg-blue-500/10` : "border-zinc-700 bg-zinc-900"}`}
                         >
-                          <Pin
-                            size={12}
-                            fill={playlist.is_pinned ? "currentColor" : "none"}
-                          />
-                        </button>
-
-                        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          {isDropTarget ? (
+                            <span
+                              className={`pointer-events-none absolute left-1 right-1 z-30 h-0.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.75)] ${dropTargetPosition === "after" ? "-bottom-1" : "-top-1"}`}
+                              aria-hidden="true"
+                            />
+                          ) : null}
                           <button
                             type="button"
-                            onClick={() =>
-                              handleDeletePlaylist(playlist.id, playlist.name)
+                            onClick={(event) =>
+                              handlePlaylistCardClick(event, playlist, "user")
                             }
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-300 hover:text-red-300"
-                            aria-label={`Delete ${playlist.name}`}
-                            title={`Delete ${playlist.name}`}
+                            className="w-full pr-9 text-left"
                           >
-                            <Trash2 size={12} />
+                            <p className="truncate text-sm text-zinc-100">
+                              {playlist.name}
+                            </p>
+                            <p className="text-[11px] text-zinc-400">
+                              owner: {playlist.owner} • {playlist.songs} tracks
+                            </p>
                           </button>
+
                           <button
                             type="button"
-                            onClick={() =>
-                              handlePlaylistQueueAdd(playlist, "user")
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleTogglePlaylistPin(playlist);
+                            }}
+                            disabled={
+                              !playlist.is_pinned && pinnedPlaylistCount >= 8
                             }
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100 hover:text-blue-300"
-                            aria-label={`Play ${playlist.name}`}
-                            title={`Play ${playlist.name}`}
+                            className={`absolute right-0 top-0 z-10 flex h-6 w-6 translate-x-[35%] -translate-y-[35%] items-center justify-center rounded-full border transition-opacity hover:text-amber-300 ${playlist.is_pinned ? "border-zinc-700 bg-zinc-900 text-amber-300 opacity-100" : "border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100"}`}
+                            aria-label={
+                              playlist.is_pinned
+                                ? `Unpin ${playlist.name}`
+                                : `Pin ${playlist.name}`
+                            }
+                            title={
+                              playlist.is_pinned
+                                ? "Pinned playlist"
+                                : pinnedPlaylistCount >= 8
+                                  ? "Pin limit reached (8)"
+                                  : "Pin playlist"
+                            }
                           >
-                            <Play size={13} />
+                            <Pin
+                              size={12}
+                              fill={
+                                playlist.is_pinned ? "currentColor" : "none"
+                              }
+                            />
                           </button>
+
+                          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDeletePlaylist(playlist.id, playlist.name)
+                              }
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-300 hover:text-red-300"
+                              aria-label={`Delete ${playlist.name}`}
+                              title={`Delete ${playlist.name}`}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handlePlaylistQueueAdd(playlist, "user")
+                              }
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100 hover:text-blue-300"
+                              aria-label={`Play ${playlist.name}`}
+                              title={`Play ${playlist.name}`}
+                            >
+                              <Play size={13} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {!filteredUserPlaylists.length ? (
                       <p className="text-[11px] text-zinc-500">
