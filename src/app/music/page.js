@@ -871,14 +871,7 @@ export default function MusicPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 text-white">
-      <div className="mb-4">
-        <p className="text-2xl font-bold">Music</p>
-        <p className="text-sm text-zinc-300">
-          Live state with backend command bridge.
-        </p>
-      </div>
-
-      <section className="relative z-50 mb-4 max-w-md">
+      <section className="relative z-50 mb-4 flex flex-col gap-3 md:flex-row md:items-start md:gap-4">
         {isServerPickerOpen ? (
           <button
             type="button"
@@ -888,66 +881,75 @@ export default function MusicPage() {
           />
         ) : null}
 
-        <div className="relative z-50">
-          <button
-            type="button"
-            onClick={() => setIsServerPickerOpen((prev) => !prev)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900/85 px-3 py-2 text-left"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs text-zinc-400">Select server</p>
-                <p
-                  className={`truncate text-sm ${selectedGuild?.can_edit ? "text-zinc-100" : "text-zinc-500"}`}
-                >
-                  {selectedGuild?.guild_name || "No server selected"}
-                </p>
+        <div className="w-full md:max-w-md">
+          <div className="relative z-50">
+            <button
+              type="button"
+              onClick={() => setIsServerPickerOpen((prev) => !prev)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-900/85 px-3 py-2 text-left"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-zinc-400">Select server</p>
+                  <p
+                    className={`truncate text-sm ${selectedGuild?.can_edit ? "text-zinc-100" : "text-zinc-500"}`}
+                  >
+                    {selectedGuild?.guild_name || "No server selected"}
+                  </p>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${isServerPickerOpen ? "rotate-180" : ""}`}
+                />
               </div>
-              <ChevronDown
-                size={16}
-                className={`transition-transform ${isServerPickerOpen ? "rotate-180" : ""}`}
-              />
-            </div>
-          </button>
+            </button>
 
-          {isServerPickerOpen ? (
-            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[60] rounded-lg border border-zinc-700 bg-zinc-950/95 p-2 shadow-lg">
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {servers
-                  .filter((server) => server.guild_id !== selectedGuildId)
-                  .map((server) => (
-                    <button
-                      key={server.guild_id}
-                      type="button"
-                      onClick={() => handleGuildSelect(server.guild_id)}
-                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-left hover:bg-zinc-800"
-                    >
-                      <p
-                        className={`truncate text-sm ${server.can_edit ? "text-zinc-100" : "text-zinc-500"}`}
+            {isServerPickerOpen ? (
+              <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[60] rounded-lg border border-zinc-700 bg-zinc-950/95 p-2 shadow-lg">
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {servers
+                    .filter((server) => server.guild_id !== selectedGuildId)
+                    .map((server) => (
+                      <button
+                        key={server.guild_id}
+                        type="button"
+                        onClick={() => handleGuildSelect(server.guild_id)}
+                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-left hover:bg-zinc-800"
                       >
-                        {server.guild_name}
-                      </p>
-                      {!server.can_edit ? (
-                        <p className="text-[11px] text-zinc-500">
-                          no permissions
+                        <p
+                          className={`truncate text-sm ${server.can_edit ? "text-zinc-100" : "text-zinc-500"}`}
+                        >
+                          {server.guild_name}
                         </p>
-                      ) : null}
-                    </button>
-                  ))}
+                        {!server.can_edit ? (
+                          <p className="text-[11px] text-zinc-500">
+                            no permissions
+                          </p>
+                        ) : null}
+                      </button>
+                    ))}
+                </div>
               </div>
-            </div>
+            ) : null}
+          </div>
+
+          {isLoadingServers ? (
+            <p className="mt-2 text-xs text-zinc-500">Loading servers...</p>
+          ) : null}
+
+          {!isLoadingServers && !servers.length ? (
+            <p className="mt-2 text-xs text-zinc-500">
+              No editable servers available.
+            </p>
           ) : null}
         </div>
 
-        {isLoadingServers ? (
-          <p className="mt-2 text-xs text-zinc-500">Loading servers...</p>
-        ) : null}
-
-        {!isLoadingServers && !servers.length ? (
-          <p className="mt-2 text-xs text-zinc-500">
-            No editable servers available.
+        <div className="min-w-0 flex-1 md:pt-1">
+          <p className="text-2xl font-bold">Music</p>
+          <p className="text-sm text-zinc-300">
+            Live state with backend command bridge.
           </p>
-        ) : null}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-zinc-700 bg-zinc-950/80 p-3 md:p-4">
