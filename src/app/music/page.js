@@ -97,6 +97,7 @@ export default function MusicPage() {
   const [sortDirection, setSortDirection] = useState("asc");
   const [browseTitle, setBrowseTitle] = useState("Home");
   const [browseView, setBrowseView] = useState("home");
+  const [selectedPlaylistName, setSelectedPlaylistName] = useState("");
   const [queueTab, setQueueTab] = useState("queue");
   const [activeControlFlash, setActiveControlFlash] = useState("");
 
@@ -316,6 +317,7 @@ export default function MusicPage() {
   const handlePlaylistBrowse = (playlistName, type = "playlist") => {
     setBrowseView(type);
     setBrowseTitle(playlistName);
+    setSelectedPlaylistName(type === "playlist" ? playlistName : "");
   };
 
   const handleCreatePlaylist = () => {
@@ -361,6 +363,35 @@ export default function MusicPage() {
     [selectedUserPlaylistId, userPlaylists],
   );
 
+  const visibleLibraryTracks = useMemo(() => {
+    if (browseView !== "playlist" || !selectedPlaylistName) {
+      return sortedLibraryTracks;
+    }
+
+    if (
+      selectedUserPlaylist &&
+      selectedUserPlaylist.name === selectedPlaylistName
+    ) {
+      const trackKeys = new Set(
+        (selectedUserPlaylist.tracks || [])
+          .map((track) => track.track_key)
+          .filter(Boolean),
+      );
+      return sortedLibraryTracks.filter((track) =>
+        trackKeys.has(track.track_key),
+      );
+    }
+
+    return sortedLibraryTracks.filter(
+      (track) => track.playlist_name === selectedPlaylistName,
+    );
+  }, [
+    browseView,
+    selectedPlaylistName,
+    selectedUserPlaylist,
+    sortedLibraryTracks,
+  ]);
+
   const handlePriorityQueueAdd = (track) => {
     sendAction("enqueue_priority", {
       track_title: track.title,
@@ -384,6 +415,7 @@ export default function MusicPage() {
   const handleBackToHome = () => {
     setBrowseView("home");
     setBrowseTitle("Home");
+    setSelectedPlaylistName("");
     setSearchValue("");
   };
 
@@ -392,6 +424,7 @@ export default function MusicPage() {
     if (value.trim().length > 0) {
       setBrowseView("search");
       setBrowseTitle("Search results");
+      setSelectedPlaylistName("");
     }
   };
 
@@ -522,9 +555,10 @@ export default function MusicPage() {
                 >
                   <button
                     type="button"
-                    onClick={() =>
-                      handlePlaylistBrowse(playlist.name, "playlist")
-                    }
+                    onClick={() => {
+                      setSelectedUserPlaylistId(null);
+                      handlePlaylistBrowse(playlist.name, "playlist");
+                    }}
                     className="w-full pr-9 text-left"
                   >
                     <p className="truncate text-sm text-zinc-100">
@@ -537,12 +571,10 @@ export default function MusicPage() {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      handlePlaylistBrowse(
-                        `Playing playlist: ${playlist.name}`,
-                        "playlist",
-                      )
-                    }
+                    onClick={() => {
+                      setSelectedUserPlaylistId(null);
+                      handlePlaylistBrowse(playlist.name, "playlist");
+                    }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100"
                     aria-label={`Play ${playlist.name}`}
                     title={`Play ${playlist.name}`}
@@ -580,10 +612,7 @@ export default function MusicPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        handlePlaylistBrowse(
-                          `Playing playlist: ${playlist.name}`,
-                          "playlist",
-                        )
+                        handlePlaylistBrowse(playlist.name, "playlist")
                       }
                       className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100"
                       aria-label={`Play ${playlist.name}`}
@@ -685,6 +714,7 @@ export default function MusicPage() {
                   onClick={() => {
                     setBrowseView("library");
                     setBrowseTitle("All library tracks");
+                    setSelectedPlaylistName("");
                   }}
                   className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
                   aria-label="Open full library"
@@ -718,7 +748,9 @@ export default function MusicPage() {
                     </button>
                   ))}
                 </div>
-              ) : browseView === "playlist" && selectedUserPlaylist ? (
+              ) : browseView === "playlist" &&
+                selectedUserPlaylist &&
+                selectedUserPlaylist.name === selectedPlaylistName ? (
                 <div className="mt-3 space-y-2">
                   {(selectedUserPlaylist.tracks || []).map((track, index) => (
                     <div
@@ -788,7 +820,7 @@ export default function MusicPage() {
               </div>
 
               <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                {sortedLibraryTracks.map((track) => (
+                {visibleLibraryTracks.map((track) => (
                   <div
                     key={track.id}
                     className="group flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2"
@@ -830,6 +862,12 @@ export default function MusicPage() {
                     </div>
                   </div>
                 ))}
+
+                {!visibleLibraryTracks.length ? (
+                  <p className="px-1 py-2 text-sm text-zinc-500">
+                    No tracks in this playlist.
+                  </p>
+                ) : null}
               </div>
             </div>
 
