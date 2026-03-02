@@ -1,114 +1,139 @@
 "use client";
+
 import Link from "next/link";
-import { useState } from "react";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
+import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import eppyLogo from "@/app/Eppy.png";
+
+const NAV_ITEMS = [
+  { href: "/", label: "Home" },
+  { href: "/about", label: "About" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/music", label: "Music", placeholder: true },
+];
 
 export default function Navbar() {
   const { data: session } = useSession();
-  const [active, setActive] = useState("/");
+  const pathname = usePathname();
 
   const handleSignIn = () => {
-    const signInWindow = window.open(
-      "/auth/signin",
-      "SignIn",
-      "width=600,height=900"
-    );
-
-    const checkWindowClosed = setInterval(() => {
-      if (signInWindow.closed) {
-        clearInterval(checkWindowClosed);
-        window.location.reload();
-      }
-    }, 1000);
-
-    window.addEventListener("message", (event) => {
-      if (event.data === "authComplete") {
-        signInWindow.close();
-        window.location.reload();
-      }
-    });
+    signIn("discord", { callbackUrl: "/dashboard" });
   };
 
   return (
-    <nav className="fixed top-0 w-full flex justify-between items-center p-5 bg-zinc-950 text-cyan-400 shadow-lg z-50">
-      <div className="flex items-center gap-2" style={{ width: "20%" }}>
-        <Image
-          src="/assets/Eppy.png"
-          alt="Eppy Logo"
-          width={40}
-          height={40}
-          className="rounded-full"
-        />
-        <div className="text-3xl font-bold">Eppy</div>
-      </div>
-      <div className="flex-grow"></div>
-      <div
-        className="flex items-center gap-4 justify-center"
-        style={{ width: "40%" }}
-      >
-        <Button
-          className={`text-2xl ${
-            active === "/" ? "bg-cyan-700 scale-105" : "bg-zinc-900"
-          } ${active === "/" ? "border-b-2 border-cyan-400" : ""}`}
-          variant="ghost"
-          asChild
-          onClick={() => setActive("/")}
-        >
-          <Link href="/">Home</Link>
-        </Button>
-        <Button
-          className={`text-2xl ${
-            active === "/about" ? "bg-cyan-700 scale-105" : "bg-zinc-900"
-          } ${active === "/about" ? "border-b-2 border-cyan-400" : ""}`}
-          variant="ghost"
-          asChild
-          onClick={() => setActive("/about")}
-        >
-          <Link href="/about">About</Link>
-        </Button>
-        <Button
-          className={`text-2xl ${
-            active === "/dashboard" ? "bg-cyan-700 scale-105" : "bg-zinc-900"
-          } ${active === "/dashboard" ? "border-b-2 border-cyan-400" : ""}`}
-          variant="ghost"
-          asChild
-          onClick={() => setActive("/dashboard")}
-        >
-          <Link href="/dashboard">Dashboard</Link>
-        </Button>
-      </div>
-      <div className="flex-grow"></div>
-      <div
-        className="flex items-center gap-7 justify-end"
-        style={{ width: "20%" }}
-      >
-        {session ? (
-          <>
-            <div className="text-[25px] text-white font-bold">Welcome</div>
-            <span className="text-[25px] text-white font-bold">
-              {session.user.name}
-            </span>
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
+      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+        <Link href="/" className="flex items-center gap-2 min-w-0">
+          <div className="w-9 h-9 rounded-full overflow-hidden border border-zinc-700 shrink-0">
+            <Image
+              src={eppyLogo}
+              alt="Eppy Logo"
+              width={36}
+              height={36}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <span className="text-xl font-bold text-white truncate">Eppy</span>
+        </Link>
+
+        <div className="hidden md:flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900/70 p-1">
+          {NAV_ITEMS.map((item) => {
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname?.startsWith(item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  isActive
+                    ? "bg-blue-600 text-white"
+                    : "text-zinc-300 hover:text-white hover:bg-zinc-800"
+                }`}
+              >
+                {item.label}
+                {item.placeholder ? (
+                  <span className="ml-1 text-[10px] align-middle text-zinc-300">
+                    (Soon)
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {session ? (
+            <>
+              <div className="hidden lg:flex items-center gap-2 min-w-0">
+                {session.user?.image ? (
+                  <Image
+                    src={session.user.image}
+                    alt={session.user?.name || "User avatar"}
+                    width={28}
+                    height={28}
+                    className="rounded-full border border-zinc-600"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center text-xs font-semibold text-zinc-200">
+                    {(session.user?.name || "U")[0]}
+                  </div>
+                )}
+
+                <span className="text-sm text-zinc-300 max-w-40 truncate">
+                  {session.user?.name}
+                </span>
+              </div>
+              <Button
+                className="bg-zinc-800 text-white hover:bg-zinc-700 px-3 py-1.5"
+                variant="outline"
+                onClick={() => signOut()}
+              >
+                Logout
+              </Button>
+            </>
+          ) : (
             <Button
-              className="text-2xl bg-zinc-900"
-              variant="outline"
-              onClick={() => signOut()}
-            >
-              Logout
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              className="text-2xl bg-zinc-900"
+              className="bg-zinc-800 text-white hover:bg-zinc-700 px-3 py-1.5"
               variant="outline"
               onClick={handleSignIn}
             >
               Login with Discord
             </Button>
-          </>
-        )}
+          )}
+        </div>
+      </div>
+
+      <div className="md:hidden border-t border-zinc-800 px-4 py-2 flex items-center gap-1 overflow-x-auto">
+        {NAV_ITEMS.map((item) => {
+          const isActive =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname?.startsWith(item.href);
+
+          return (
+            <Link
+              key={`mobile-${item.href}`}
+              href={item.href}
+              className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                isActive
+                  ? "bg-blue-600 text-white"
+                  : "text-zinc-300 hover:text-white hover:bg-zinc-800"
+              }`}
+            >
+              {item.label}
+              {item.placeholder ? (
+                <span className="ml-1 text-[10px] align-middle text-zinc-300">
+                  (Soon)
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );
