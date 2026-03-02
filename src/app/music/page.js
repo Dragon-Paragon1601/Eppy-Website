@@ -538,6 +538,22 @@ export default function MusicPage() {
     );
   };
 
+  const handlePriorityQueueAddSingle = (track) => {
+    if (!track?.track_key) return;
+
+    runActionBatch([
+      {
+        action: "enqueue_priority",
+        payload: {
+          track_title: track.title,
+          track_path: track.path || null,
+        },
+      },
+    ]);
+    setBrowseView("track");
+    setBrowseTitle(`Priority queued: ${track.title}`);
+  };
+
   const handleOpenAddToPlaylists = (track) => {
     const tracksToAdd = getSelectedTracksForAction(track);
     if (!tracksToAdd.length) return;
@@ -548,6 +564,14 @@ export default function MusicPage() {
     if (!keys.length) return;
 
     setPendingAddTrackKeys(keys);
+    setCheckedPlaylistIds([]);
+    setIsAddToPlaylistsOpen(true);
+  };
+
+  const handleOpenAddToPlaylistsSingle = (track) => {
+    if (!track?.track_key) return;
+
+    setPendingAddTrackKeys([String(track.track_key)]);
     setCheckedPlaylistIds([]);
     setIsAddToPlaylistsOpen(true);
   };
@@ -920,6 +944,8 @@ export default function MusicPage() {
                               <button
                                 type="button"
                                 onClick={() => {
+                                  setSelectedTrackKeys([]);
+                                  setSelectedPlaylistKeys([]);
                                   setBrowseView("track");
                                   setBrowseTitle(
                                     `${track.title} • ${track.artist}`,
@@ -940,23 +966,20 @@ export default function MusicPage() {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    handleAddTrackToSelectedPlaylist(track)
+                                    handleOpenAddToPlaylistsSingle(track)
                                   }
-                                  disabled={!selectedUserPlaylistId}
-                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 disabled:opacity-30"
+                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100"
                                   aria-label="Add to selected playlist"
-                                  title={
-                                    selectedUserPlaylistId
-                                      ? "Add to selected playlist"
-                                      : "Select your playlist first"
-                                  }
+                                  title="Add to playlists"
                                 >
                                   <Plus size={12} />
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handlePriorityQueueAdd(track)}
-                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 disabled:opacity-30"
+                                  onClick={() =>
+                                    handlePriorityQueueAddSingle(track)
+                                  }
+                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100"
                                   aria-label={`Add ${track.title} to priority queue`}
                                   title="Add to priority queue"
                                 >
@@ -1092,11 +1115,12 @@ export default function MusicPage() {
                   {visibleLibraryTracks.map((track) => (
                     <div
                       key={track.id}
-                      className="group flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2"
+                      onClick={(event) => handleTrackCardClick(event, track)}
+                      className={`group flex items-center justify-between rounded-md border px-3 py-2 ${selectedTrackKeys.includes(String(track.track_key || track.path || track.id || "")) ? "border-green-500/70 bg-green-500/10" : "border-zinc-700 bg-zinc-950"}`}
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm text-zinc-100">
-                          #{track.number} • {track.title}
+                          {track.number} • {track.title}
                         </p>
                         <p className="truncate text-xs text-zinc-400">
                           {track.artist}
@@ -1109,23 +1133,22 @@ export default function MusicPage() {
                         </p>
                         <button
                           type="button"
-                          onClick={() =>
-                            handleAddTrackToSelectedPlaylist(track)
-                          }
-                          disabled={!selectedUserPlaylistId}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleOpenAddToPlaylists(track);
+                          }}
                           className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 disabled:opacity-30"
                           aria-label="Add to selected playlist"
-                          title={
-                            selectedUserPlaylistId
-                              ? "Add to selected playlist"
-                              : "Select your playlist first"
-                          }
+                          title="Add to playlists"
                         >
                           <Plus size={12} />
                         </button>
                         <button
                           type="button"
-                          onClick={() => handlePriorityQueueAdd(track)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handlePriorityQueueAdd(track);
+                          }}
                           className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100 "
                           aria-label={`Add ${track.title} to priority queue`}
                           title="Add to priority queue"
