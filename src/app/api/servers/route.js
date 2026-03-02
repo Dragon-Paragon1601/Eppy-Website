@@ -144,6 +144,58 @@ async function getUserGuilds(userId) {
   return rows;
 }
 
+async function getCurrentDiscordGuildIds(accessToken) {
+  if (!accessToken) {
+    return new Set();
+  }
+
+  const guildIds = new Set();
+  let before = null;
+
+  for (let page = 0; page < 10; page += 1) {
+    const query = new URLSearchParams({ limit: "200" });
+    if (before) {
+      query.set("before", before);
+    }
+
+    const response = await fetch(
+      `https://discord.com/api/v10/users/@me/guilds?${query.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        cache: "no-store",
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Discord guild list fetch failed: ${response.status}`);
+    }
+
+    const pageGuilds = await response.json();
+    if (!Array.isArray(pageGuilds) || !pageGuilds.length) {
+      break;
+    }
+
+    for (const guild of pageGuilds) {
+      if (guild?.id) {
+        guildIds.add(guild.id);
+      }
+    }
+
+    if (pageGuilds.length < 200) {
+      break;
+    }
+
+    before = pageGuilds[pageGuilds.length - 1]?.id || null;
+    if (!before) {
+      break;
+    }
+  }
+
+  return guildIds;
+}
+
 async function getMemberProfiles(accessToken, guildIds) {
   const profiles = {};
 
@@ -460,17 +512,36 @@ export async function GET() {
   try {
     await ensureSettingsTables();
 
-    const userServers = await getUserGuilds(userId);
+    const [userServers, currentDiscordGuildIds] = await Promise.all([
+      getUserGuilds(userId),
+      getCurrentDiscordGuildIds(session.accessToken),
+    ]);
 
-    if (!userServers.length) {
+    const filteredUserServers = userServers.filter((server) =>
+      currentDiscordGuildIds.has(server.guild_id),
+    );
+
+    const staleGuildIds = userServers
+      .filter((server) => !currentDiscordGuildIds.has(server.guild_id))
+      .map((server) => server.guild_id);
+
+    if (staleGuildIds.length) {
+      await promisePool.query(
+        "DELETE FROM users WHERE user_id = ? AND guild_id IN (?)",
+        [userId, staleGuildIds],
+      );
+    }
+
+    if (!filteredUserServers.length) {
       return jsonResponse({
         servers: [],
         channels: [],
+        roles: [],
         guildSettings: [],
       });
     }
 
-    const guildIds = userServers.map((server) => server.guild_id);
+    const guildIds = filteredUserServers.map((server) => server.guild_id);
     const channels = await getGuildChannels(guildIds);
     const roles = await getGuildRoles(guildIds);
     const guildSettings = await getGuildSettings(guildIds);
@@ -479,7 +550,7 @@ export async function GET() {
       guildIds,
     );
 
-    const servers = userServers.map((server) => ({
+    const servers = filteredUserServers.map((server) => ({
       ...server,
       can_edit: Number(server.admin_prem || 0) >= MANAGE_GUILD_LEVEL,
       member_profile: memberProfiles[server.guild_id] || null,
