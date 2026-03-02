@@ -14,6 +14,7 @@ const ALLOWED_ACTIONS = new Set([
   "toggle_pause",
   "next",
   "previous",
+  "start_playback",
   "set_shuffle",
   "set_loop",
   "enqueue_priority",
@@ -44,7 +45,11 @@ const TABLE_DEFINITIONS = [
   },
   {
     table: "guild_music_playlist_tracks",
-    sql: "CREATE TABLE IF NOT EXISTS guild_music_playlist_tracks (playlist_id BIGINT UNSIGNED NOT NULL, track_key VARCHAR(512) NOT NULL, position INT NOT NULL DEFAULT 0, added_by VARCHAR(32) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (playlist_id, track_key), KEY idx_guild_music_playlist_tracks_position (playlist_id, position), CONSTRAINT fk_guild_music_playlist_tracks_playlist FOREIGN KEY (playlist_id) REFERENCES guild_music_playlists(id) ON DELETE CASCADE, CONSTRAINT fk_guild_music_playlist_tracks_track FOREIGN KEY (track_key) REFERENCES music_library_tracks(track_key) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    sql: "CREATE TABLE IF NOT EXISTS guild_music_playlist_tracks (playlist_id BIGINT UNSIGNED NOT NULL, track_key VARCHAR(512) NOT NULL, position INT NOT NULL DEFAULT 0, added_by VARCHAR(32) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (playlist_id, track_key), KEY idx_guild_music_playlist_tracks_position (playlist_id, position), KEY idx_guild_music_playlist_tracks_track (track_key)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  },
+  {
+    table: "guild_user_voice_states",
+    sql: "CREATE TABLE IF NOT EXISTS guild_user_voice_states (guild_id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NOT NULL, channel_id VARCHAR(32) NOT NULL, channel_name VARCHAR(255) NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (guild_id, user_id), KEY idx_guild_voice_channel (guild_id, channel_id), KEY idx_guild_voice_updated (updated_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
   },
 ];
 
@@ -90,6 +95,12 @@ function truncate(value, maxLength) {
   return String(value || "")
     .trim()
     .slice(0, maxLength);
+}
+
+function toPositiveInt(value) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return null;
+  return parsed;
 }
 
 async function ensureMusicTables() {
@@ -240,12 +251,26 @@ export async function GET(request) {
     tracks: tracksByPlaylist.get(playlist.id) || [],
   }));
 
+  const [voiceRows] = await promisePool.query(
+    "SELECT channel_id, channel_name, updated_at FROM guild_user_voice_states WHERE guild_id = ? AND user_id = ? LIMIT 1",
+    [guildId, session.user.id],
+  );
+
+  const userVoiceState = voiceRows?.[0]
+    ? {
+        channel_id: voiceRows[0].channel_id,
+        channel_name: voiceRows[0].channel_name || "voice",
+        updated_at: voiceRows[0].updated_at,
+      }
+    : null;
+
   return jsonResponse({
     guild_id: guildId,
     state,
     libraryTracks,
     premadePlaylists,
     userPlaylists,
+    userVoiceState,
   });
 }
 
@@ -311,20 +336,22 @@ export async function POST(request) {
   }
 
   if (action === "delete_user_playlist") {
-    if (!payload.playlist_id) {
+    const playlistId = toPositiveInt(payload.playlist_id);
+    if (!playlistId) {
       return jsonResponse({ error: "playlist_id is required" }, 400);
     }
 
     await promisePool.query(
       "DELETE FROM guild_music_playlists WHERE id = ? AND guild_id = ?",
-      [payload.playlist_id, guildId],
+      [playlistId, guildId],
     );
 
     return jsonResponse({ ok: true });
   }
 
   if (action === "add_track_to_user_playlist") {
-    if (!payload.playlist_id || !payload.track_key) {
+    const playlistId = toPositiveInt(payload.playlist_id);
+    if (!playlistId || !payload.track_key) {
       return jsonResponse(
         { error: "playlist_id and track_key are required" },
         400,
@@ -333,7 +360,7 @@ export async function POST(request) {
 
     const [playlistRows] = await promisePool.query(
       "SELECT id FROM guild_music_playlists WHERE id = ? AND guild_id = ? LIMIT 1",
-      [payload.playlist_id, guildId],
+      [playlistId, guildId],
     );
     if (!playlistRows?.length) {
       return jsonResponse({ error: "Playlist not found" }, 404);
@@ -349,20 +376,21 @@ export async function POST(request) {
 
     const [maxPositionRows] = await promisePool.query(
       "SELECT COALESCE(MAX(position), 0) AS max_position FROM guild_music_playlist_tracks WHERE playlist_id = ?",
-      [payload.playlist_id],
+      [playlistId],
     );
 
     const nextPosition = Number(maxPositionRows?.[0]?.max_position || 0) + 1;
     await promisePool.query(
-      "INSERT INTO guild_music_playlist_tracks (playlist_id, track_key, position, added_by) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE position = VALUES(position)",
-      [payload.playlist_id, payload.track_key, nextPosition, session.user.id],
+      "INSERT INTO guild_music_playlist_tracks (playlist_id, track_key, position, added_by) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE track_key = track_key",
+      [playlistId, payload.track_key, nextPosition, session.user.id],
     );
 
     return jsonResponse({ ok: true });
   }
 
   if (action === "remove_track_from_user_playlist") {
-    if (!payload.playlist_id || !payload.track_key) {
+    const playlistId = toPositiveInt(payload.playlist_id);
+    if (!playlistId || !payload.track_key) {
       return jsonResponse(
         { error: "playlist_id and track_key are required" },
         400,
@@ -371,18 +399,18 @@ export async function POST(request) {
 
     await promisePool.query(
       "DELETE FROM guild_music_playlist_tracks WHERE playlist_id = ? AND track_key = ?",
-      [payload.playlist_id, payload.track_key],
+      [playlistId, payload.track_key],
     );
 
     const [remainingRows] = await promisePool.query(
       "SELECT track_key FROM guild_music_playlist_tracks WHERE playlist_id = ? ORDER BY position ASC, created_at ASC",
-      [payload.playlist_id],
+      [playlistId],
     );
 
     for (let index = 0; index < remainingRows.length; index += 1) {
       await promisePool.query(
         "UPDATE guild_music_playlist_tracks SET position = ? WHERE playlist_id = ? AND track_key = ?",
-        [index + 1, payload.playlist_id, remainingRows[index].track_key],
+        [index + 1, playlistId, remainingRows[index].track_key],
       );
     }
 

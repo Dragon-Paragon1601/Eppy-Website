@@ -88,6 +88,7 @@ export default function MusicPage() {
   const [libraryTracks, setLibraryTracks] = useState([]);
   const [premadePlaylists, setPremadePlaylists] = useState([]);
   const [userPlaylists, setUserPlaylists] = useState([]);
+  const [userVoiceState, setUserVoiceState] = useState(null);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [selectedUserPlaylistId, setSelectedUserPlaylistId] = useState(null);
   const [searchValue, setSearchValue] = useState("");
@@ -144,6 +145,7 @@ export default function MusicPage() {
       setUserPlaylists(
         Array.isArray(payload?.userPlaylists) ? payload.userPlaylists : [],
       );
+      setUserVoiceState(payload?.userVoiceState || null);
     },
     [session],
   );
@@ -277,6 +279,8 @@ export default function MusicPage() {
     const playbackState = musicState.playback_state || "idle";
     const showControls =
       playbackState === "playing" || playbackState === "paused";
+    const canStartFromDashboard =
+      playbackState === "idle" && !!userVoiceState?.channel_id;
 
     return {
       state:
@@ -292,10 +296,13 @@ export default function MusicPage() {
           ? "Now playing with active controls."
           : playbackState === "paused"
             ? "Playback paused."
-            : "Join a voice channel and queue a track.",
+            : canStartFromDashboard
+              ? `Ready to start in #${userVoiceState?.channel_name || "voice"}.`
+              : "Join a voice channel and queue a track.",
       showControls,
+      canStartFromDashboard,
     };
-  }, [musicState]);
+  }, [musicState, userVoiceState]);
 
   const handleGuildSelect = (guildId) => {
     setSelectedGuildId(guildId);
@@ -861,9 +868,16 @@ export default function MusicPage() {
                         type="button"
                         onClick={() => {
                           triggerControlFlash("toggle_pause");
-                          sendAction("toggle_pause");
+                          if (currentState.canStartFromDashboard) {
+                            sendAction("start_playback");
+                          } else {
+                            sendAction("toggle_pause");
+                          }
                         }}
-                        disabled={!currentState.showControls}
+                        disabled={
+                          !currentState.showControls &&
+                          !currentState.canStartFromDashboard
+                        }
                         className={`${getControlClassName("toggle_pause")} disabled:opacity-40`}
                       >
                         {currentState.state === "Playing" ? (
@@ -921,6 +935,12 @@ export default function MusicPage() {
                 <p className="mt-2 text-center text-xs text-zinc-400">
                   {currentState.message}
                 </p>
+                {!currentState.showControls && userVoiceState?.channel_id ? (
+                  <p className="mt-1 text-center text-[11px] text-zinc-500">
+                    Your voice channel: #
+                    {userVoiceState.channel_name || "voice"}
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
