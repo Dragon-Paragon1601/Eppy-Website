@@ -162,10 +162,10 @@ async function canAccessGuild(userId, guildId) {
   return rows.length > 0;
 }
 
-async function playlistBelongsToGuild(playlistId, guildId) {
+async function canEditPlaylist(playlistId, guildId, userId) {
   const [playlistRows] = await promisePool.query(
-    "SELECT id FROM guild_music_playlists WHERE id = ? AND guild_id = ? LIMIT 1",
-    [playlistId, guildId],
+    "SELECT id FROM guild_music_playlists WHERE id = ? AND guild_id = ? AND created_by = ? LIMIT 1",
+    [playlistId, guildId, userId],
   );
 
   return !!playlistRows?.length;
@@ -258,8 +258,8 @@ export async function GET(request) {
     .sort((left, right) => left.name.localeCompare(right.name));
 
   const [playlistRows] = await promisePool.query(
-    "SELECT p.id, p.name, p.created_by, p.created_at, COUNT(pt.track_key) AS songs FROM guild_music_playlists p LEFT JOIN guild_music_playlist_tracks pt ON pt.playlist_id = p.id WHERE p.guild_id = ? GROUP BY p.id, p.name, p.created_by, p.created_at ORDER BY p.created_at DESC",
-    [guildId],
+    "SELECT p.id, p.name, p.created_by, p.created_at, COUNT(pt.track_key) AS songs FROM guild_music_playlists p LEFT JOIN guild_music_playlist_tracks pt ON pt.playlist_id = p.id WHERE p.guild_id = ? AND p.created_by = ? GROUP BY p.id, p.name, p.created_by, p.created_at ORDER BY p.created_at DESC",
+    [guildId, session.user.id],
   );
 
   const [pinRows] = await promisePool.query(
@@ -311,8 +311,8 @@ export async function GET(request) {
   }));
 
   const [recentRows] = await promisePool.query(
-    "SELECT r.playlist_id, r.last_played_at FROM guild_user_music_recent_playlists r INNER JOIN guild_music_playlists p ON p.id = r.playlist_id AND p.guild_id = r.guild_id WHERE r.guild_id = ? AND r.user_id = ? ORDER BY r.last_played_at DESC LIMIT 8",
-    [guildId, session.user.id],
+    "SELECT r.playlist_id, r.last_played_at FROM guild_user_music_recent_playlists r INNER JOIN guild_music_playlists p ON p.id = r.playlist_id AND p.guild_id = r.guild_id WHERE r.guild_id = ? AND r.user_id = ? AND p.created_by = ? ORDER BY r.last_played_at DESC LIMIT 8",
+    [guildId, session.user.id, session.user.id],
   );
 
   const playlistById = new Map(
@@ -487,21 +487,25 @@ export async function POST(request) {
       return jsonResponse({ error: "playlist_id is required" }, 400);
     }
 
-    const existsInGuild = await playlistBelongsToGuild(playlistId, guildId);
-    if (!existsInGuild) {
-      return jsonResponse({ error: "Playlist not found" }, 404);
+    const isEditable = await canEditPlaylist(
+      playlistId,
+      guildId,
+      session.user.id,
+    );
+    if (!isEditable) {
+      return jsonResponse({ error: "You cannot edit this playlist" }, 403);
     }
 
     if (action === "pin_user_playlist") {
       const [countRows] = await promisePool.query(
-        "SELECT COUNT(*) AS total FROM guild_user_music_playlist_pins WHERE guild_id = ? AND user_id = ?",
-        [guildId, session.user.id],
+        "SELECT COUNT(*) AS total FROM guild_user_music_playlist_pins pins INNER JOIN guild_music_playlists playlists ON playlists.id = pins.playlist_id AND playlists.guild_id = pins.guild_id WHERE pins.guild_id = ? AND pins.user_id = ? AND playlists.created_by = ?",
+        [guildId, session.user.id, session.user.id],
       );
 
       const currentPinnedCount = Number(countRows?.[0]?.total || 0);
       const [alreadyPinnedRows] = await promisePool.query(
-        "SELECT 1 AS is_pinned FROM guild_user_music_playlist_pins WHERE guild_id = ? AND user_id = ? AND playlist_id = ? LIMIT 1",
-        [guildId, session.user.id, playlistId],
+        "SELECT 1 AS is_pinned FROM guild_user_music_playlist_pins pins INNER JOIN guild_music_playlists playlists ON playlists.id = pins.playlist_id AND playlists.guild_id = pins.guild_id WHERE pins.guild_id = ? AND pins.user_id = ? AND pins.playlist_id = ? AND playlists.created_by = ? LIMIT 1",
+        [guildId, session.user.id, playlistId, session.user.id],
       );
 
       if (!alreadyPinnedRows?.length && currentPinnedCount >= 8) {
@@ -557,9 +561,18 @@ export async function POST(request) {
       return jsonResponse({ error: "playlist_id is required" }, 400);
     }
 
+    const isEditable = await canEditPlaylist(
+      playlistId,
+      guildId,
+      session.user.id,
+    );
+    if (!isEditable) {
+      return jsonResponse({ error: "You cannot edit this playlist" }, 403);
+    }
+
     await promisePool.query(
-      "DELETE FROM guild_music_playlists WHERE id = ? AND guild_id = ?",
-      [playlistId, guildId],
+      "DELETE FROM guild_music_playlists WHERE id = ? AND guild_id = ? AND created_by = ?",
+      [playlistId, guildId, session.user.id],
     );
 
     return jsonResponse({ ok: true });
@@ -574,12 +587,13 @@ export async function POST(request) {
       );
     }
 
-    const [playlistRows] = await promisePool.query(
-      "SELECT id FROM guild_music_playlists WHERE id = ? AND guild_id = ? LIMIT 1",
-      [playlistId, guildId],
+    const isEditable = await canEditPlaylist(
+      playlistId,
+      guildId,
+      session.user.id,
     );
-    if (!playlistRows?.length) {
-      return jsonResponse({ error: "Playlist not found" }, 404);
+    if (!isEditable) {
+      return jsonResponse({ error: "You cannot edit this playlist" }, 403);
     }
 
     const [trackRows] = await promisePool.query(
@@ -611,6 +625,15 @@ export async function POST(request) {
         { error: "playlist_id and track_key are required" },
         400,
       );
+    }
+
+    const isEditable = await canEditPlaylist(
+      playlistId,
+      guildId,
+      session.user.id,
+    );
+    if (!isEditable) {
+      return jsonResponse({ error: "You cannot edit this playlist" }, 403);
     }
 
     await promisePool.query(

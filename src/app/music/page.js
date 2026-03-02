@@ -1047,7 +1047,7 @@ export default function MusicPage() {
               </div>
             </div>
 
-            <div className="max-h-[32rem] overflow-y-auto overflow-x-hidden pr-3 [scrollbar-gutter:stable]">
+            <div className="max-h-[32rem] overflow-y-auto overflow-x-hidden pr-2 [scrollbar-gutter:stable]">
               {isPlaylistSearchOpen ? (
                 <div className="mb-3 flex items-center gap-2">
                   <div className="relative flex-1">
@@ -1145,6 +1145,19 @@ export default function MusicPage() {
                         ) : null}
 
                         <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          {scope === "user" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDeletePlaylist(playlist.id, playlist.name)
+                              }
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-red-300"
+                              aria-label={`Delete ${playlist.name}`}
+                              title={`Delete ${playlist.name}`}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() =>
@@ -1156,19 +1169,6 @@ export default function MusicPage() {
                           >
                             <Play size={13} />
                           </button>
-                          {scope === "user" ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDeletePlaylist(playlist.id, playlist.name)
-                              }
-                              className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-red-300"
-                              aria-label={`Delete ${playlist.name}`}
-                              title={`Delete ${playlist.name}`}
-                            >
-                              X
-                            </button>
-                          ) : null}
                         </div>
                       </div>
                     );
@@ -1272,6 +1272,17 @@ export default function MusicPage() {
                           <button
                             type="button"
                             onClick={() =>
+                              handleDeletePlaylist(playlist.id, playlist.name)
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-red-300"
+                            aria-label={`Delete ${playlist.name}`}
+                            title={`Delete ${playlist.name}`}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
                               handlePlaylistQueueAdd(playlist, "user")
                             }
                             className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-zinc-100"
@@ -1279,17 +1290,6 @@ export default function MusicPage() {
                             title={`Play ${playlist.name}`}
                           >
                             <Play size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDeletePlaylist(playlist.id, playlist.name)
-                            }
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/95 text-red-300"
-                            aria-label={`Delete ${playlist.name}`}
-                            title={`Delete ${playlist.name}`}
-                          >
-                            X
                           </button>
                         </div>
                       </div>
@@ -1806,7 +1806,7 @@ export default function MusicPage() {
                           title="Remove from queue"
                           aria-label="Remove from queue"
                         >
-                          X
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </div>
