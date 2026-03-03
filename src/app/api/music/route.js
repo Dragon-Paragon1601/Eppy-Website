@@ -396,24 +396,31 @@ export async function POST(request) {
     return jsonResponse({ error: "No access to this guild" }, 403);
   }
 
-  const payload = {
-    mode: body?.mode || null,
-    value: body?.value,
-    is_priority: body?.is_priority,
-    track_title: body?.track_title || null,
-    track_path: body?.track_path || null,
-    track_key: body?.track_key || null,
-    playlist_id: body?.playlist_id || null,
-    playlist_name: body?.playlist_name || null,
-    playlist_scope: body?.playlist_scope || null,
-    dragged_playlist_id: body?.dragged_playlist_id || null,
-    target_playlist_id: body?.target_playlist_id || null,
-    drop_position: body?.drop_position || null,
-    from_index: body?.from_index,
-    to_index: body?.to_index,
-    dragged_track_key: body?.dragged_track_key || null,
-    target_track_key: body?.target_track_key || null,
-  };
+  const payload = {};
+  const optionalFields = [
+    "mode",
+    "value",
+    "is_priority",
+    "track_title",
+    "track_path",
+    "track_key",
+    "playlist_id",
+    "playlist_name",
+    "playlist_scope",
+    "dragged_playlist_id",
+    "target_playlist_id",
+    "drop_position",
+    "from_index",
+    "to_index",
+    "dragged_track_key",
+    "target_track_key",
+  ];
+
+  for (const field of optionalFields) {
+    if (body?.[field] !== undefined) {
+      payload[field] = body[field];
+    }
+  }
 
   if (action === "reorder_user_playlist") {
     const draggedPlaylistId = toPositiveInt(payload.dragged_playlist_id);
@@ -465,7 +472,10 @@ export async function POST(request) {
     }
 
     const pinnedById = new Map(
-      pinStateRows.map((rowPin) => [Number(rowPin.id), Number(rowPin.is_pinned)]),
+      pinStateRows.map((rowPin) => [
+        Number(rowPin.id),
+        Number(rowPin.is_pinned),
+      ]),
     );
 
     const draggedPinned = pinnedById.get(draggedPlaylistId) === 1;
