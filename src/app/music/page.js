@@ -880,6 +880,71 @@ export default function MusicPage() {
     return byKey;
   }, [sortedLibraryTracks]);
 
+  const nowPlayingTrackForPlaylists = useMemo(() => {
+    const nowPlayingTitle = String(musicState.now_playing_title || "")
+      .trim()
+      .toLowerCase();
+    if (!nowPlayingTitle) return null;
+
+    const nowPlayingArtist = String(musicState.now_playing_artist || "")
+      .trim()
+      .toLowerCase();
+
+    const isNowPlayingMatch = (track) => {
+      const trackTitle = String(track?.title || "")
+        .trim()
+        .toLowerCase();
+      const trackArtist = String(track?.artist || "")
+        .trim()
+        .toLowerCase();
+
+      if (!trackTitle || trackTitle !== nowPlayingTitle) {
+        return false;
+      }
+
+      if (!nowPlayingArtist.length) {
+        return true;
+      }
+
+      return trackArtist === nowPlayingArtist;
+    };
+
+    const queueCandidate = [
+      ...(musicState.priorityQueue || []),
+      ...(musicState.queue || []),
+    ].find(isNowPlayingMatch);
+
+    if (queueCandidate?.track_key) {
+      return (
+        trackByKey.get(String(queueCandidate.track_key)) ||
+        sortedLibraryTracks.find(
+          (track) =>
+            String(track.track_key || "") === String(queueCandidate.track_key),
+        ) ||
+        null
+      );
+    }
+
+    if (queueCandidate?.path) {
+      const queuePath = String(queueCandidate.path);
+      const byPath = sortedLibraryTracks.find(
+        (track) => String(track.path || "") === queuePath,
+      );
+      if (byPath) {
+        return byPath;
+      }
+    }
+
+    return sortedLibraryTracks.find(isNowPlayingMatch) || null;
+  }, [
+    musicState.now_playing_artist,
+    musicState.now_playing_title,
+    musicState.priorityQueue,
+    musicState.queue,
+    sortedLibraryTracks,
+    trackByKey,
+  ]);
+
   const getSelectedTracksForAction = useCallback(
     (clickedTrack) => {
       const clickedKey = String(
@@ -1347,7 +1412,7 @@ export default function MusicPage() {
           />
         ) : null}
 
-        <div className="w-full md:max-w-md">
+        <div className="w-full md:max-w-[22.4rem]">
           <div className="relative z-50">
             <button
               type="button"
@@ -2002,7 +2067,9 @@ export default function MusicPage() {
                               className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition ${sortBy === option.value ? "bg-blue-500/20 text-blue-200" : "text-zinc-200 hover:bg-zinc-800"}`}
                             >
                               <span>{option.label}</span>
-                              {sortBy === option.value ? <Check size={12} /> : null}
+                              {sortBy === option.value ? (
+                                <Check size={12} />
+                              ) : null}
                             </button>
                           ))}
                         </div>
@@ -2183,10 +2250,26 @@ export default function MusicPage() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-zinc-100">
-                      Now playing:{" "}
-                      {musicState.now_playing_title || "Nothing playing"}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-medium text-zinc-100">
+                        Now playing:{" "}
+                        {musicState.now_playing_title || "Nothing playing"}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleOpenAddToPlaylistsSingle(
+                            nowPlayingTrackForPlaylists,
+                          )
+                        }
+                        disabled={!nowPlayingTrackForPlaylists?.track_key}
+                        className="flex h-6 w-6 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 transition hover:border-green-500/70 hover:text-green-300 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="Add currently playing track to playlists"
+                        title="Add currently playing track to playlists"
+                      >
+                        <Plus size={11} />
+                      </button>
+                    </div>
                     <p className="truncate text-xs text-zinc-400">
                       {musicState.now_playing_artist || ""}
                     </p>
@@ -2329,9 +2412,23 @@ export default function MusicPage() {
 
             <div className="mb-3 rounded-lg border border-zinc-700 bg-zinc-950 p-3">
               <p className="text-xs text-zinc-400">Currently playing</p>
-              <p className="mt-1 text-sm font-medium text-zinc-100">
-                {musicState.now_playing_title || "Nothing playing"}
-              </p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="truncate text-sm font-medium text-zinc-100">
+                  {musicState.now_playing_title || "Nothing playing"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleOpenAddToPlaylistsSingle(nowPlayingTrackForPlaylists)
+                  }
+                  disabled={!nowPlayingTrackForPlaylists?.track_key}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-100 transition hover:border-green-500/70 hover:text-green-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Add currently playing track to playlists"
+                  title="Add currently playing track to playlists"
+                >
+                  <Plus size={11} />
+                </button>
+              </div>
               <p className="text-xs text-zinc-400">
                 {musicState.now_playing_artist || ""}
               </p>

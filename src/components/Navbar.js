@@ -25,7 +25,7 @@ export default function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2 min-w-0">
+        <Link href="/" className="group flex items-center gap-2 min-w-0">
           <div className="w-9 h-9 rounded-full overflow-hidden border border-zinc-700 shrink-0">
             <Image
               src={eppyLogo}
@@ -35,7 +35,9 @@ export default function Navbar() {
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="text-xl font-bold text-white truncate">Eppy</span>
+          <span className="truncate text-xl font-bold text-white transition-colors group-hover:text-blue-300">
+            Eppy
+          </span>
         </Link>
 
         <div className="hidden md:flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900/70 p-1">
@@ -84,7 +86,7 @@ export default function Navbar() {
                 </span>
               </div>
               <Button
-                className="bg-zinc-800 text-white hover:bg-zinc-700 px-3 py-1.5"
+                className="bg-zinc-800 px-3 py-1.5 text-white hover:bg-zinc-800 hover:text-red-400"
                 variant="outline"
                 onClick={() => signOut()}
               >
@@ -93,7 +95,7 @@ export default function Navbar() {
             </>
           ) : (
             <Button
-              className="bg-zinc-800 text-white hover:bg-zinc-700 px-3 py-1.5"
+              className="bg-zinc-800 px-3 py-1.5 text-white hover:bg-zinc-800 hover:text-blue-400"
               variant="outline"
               onClick={handleSignIn}
             >
