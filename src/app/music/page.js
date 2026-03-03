@@ -22,6 +22,16 @@ import {
 
 const ACCENT_CLASS = "text-blue-300";
 const ACCENT_BORDER_CLASS = "border-blue-500/70";
+const SORT_BY_OPTIONS = [
+  { value: "number", label: "Sort: number" },
+  { value: "artist", label: "Sort: artist" },
+  { value: "title", label: "Sort: alphabetically" },
+  { value: "duration", label: "Sort: duration" },
+];
+const SORT_DIRECTION_OPTIONS = [
+  { value: "asc", label: "Ascending" },
+  { value: "desc", label: "Descending" },
+];
 
 const EMPTY_MUSIC_STATE = {
   playback_state: "idle",
@@ -70,6 +80,7 @@ export default function MusicPage() {
   const [searchValue, setSearchValue] = useState("");
   const [sortBy, setSortBy] = useState("number");
   const [sortDirection, setSortDirection] = useState("asc");
+  const [openSortMenu, setOpenSortMenu] = useState(null);
   const [browseTitle, setBrowseTitle] = useState("Home");
   const [browseView, setBrowseView] = useState("home");
   const [selectedPlaylistName, setSelectedPlaylistName] = useState("");
@@ -173,6 +184,12 @@ export default function MusicPage() {
   );
 
   const normalizedPlaylistSearch = playlistSearchValue.trim().toLowerCase();
+  const currentSortByLabel =
+    SORT_BY_OPTIONS.find((option) => option.value === sortBy)?.label ||
+    "Sort: number";
+  const currentSortDirectionLabel =
+    SORT_DIRECTION_OPTIONS.find((option) => option.value === sortDirection)
+      ?.label || "Ascending";
 
   const pinnedUserPlaylists = useMemo(
     () =>
@@ -1944,51 +1961,93 @@ export default function MusicPage() {
 
             {browseView !== "home" ? (
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
+                {openSortMenu ? (
+                  <button
+                    type="button"
+                    className="fixed inset-0 z-20"
+                    onClick={() => setOpenSortMenu(null)}
+                    aria-label="Close sorting menu"
+                  />
+                ) : null}
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs text-zinc-400">Library tracks</p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="relative">
-                      <select
-                        value={sortBy}
-                        onChange={(event) => setSortBy(event.target.value)}
-                        className="appearance-none rounded-xl border border-zinc-700/70 bg-zinc-900/45 py-1 pl-2 pr-7 text-xs text-zinc-100 backdrop-blur-md transition hover:border-zinc-500 hover:bg-zinc-900/65 focus:outline-none focus:border-zinc-500"
+                    <div className="relative z-30">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenSortMenu((current) =>
+                            current === "sortBy" ? null : "sortBy",
+                          )
+                        }
+                        className="flex items-center gap-1 rounded-xl border border-zinc-700/70 bg-zinc-900/45 py-1 pl-2 pr-2 text-xs text-zinc-100 backdrop-blur-md transition hover:border-zinc-500 hover:bg-zinc-900/65"
                       >
-                        <option value="number" className="bg-zinc-900 text-zinc-100">
-                          Sort: number
-                        </option>
-                        <option value="artist" className="bg-zinc-900 text-zinc-100">
-                          Sort: artist
-                        </option>
-                        <option value="title" className="bg-zinc-900 text-zinc-100">
-                          Sort: alphabetically
-                        </option>
-                        <option value="duration" className="bg-zinc-900 text-zinc-100">
-                          Sort: duration
-                        </option>
-                      </select>
-                      <ChevronDown
-                        size={12}
-                        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
-                      />
+                        <span>{currentSortByLabel}</span>
+                        <ChevronDown
+                          size={12}
+                          className={`text-zinc-400 transition-transform ${openSortMenu === "sortBy" ? "rotate-180" : ""}`}
+                        />
+                      </button>
+
+                      {openSortMenu === "sortBy" ? (
+                        <div className="absolute left-0 top-[calc(100%+6px)] min-w-[11rem] rounded-xl border border-zinc-700 bg-zinc-950/95 p-1.5 shadow-xl backdrop-blur-md">
+                          {SORT_BY_OPTIONS.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                setSortBy(option.value);
+                                setOpenSortMenu(null);
+                              }}
+                              className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition ${sortBy === option.value ? "bg-blue-500/20 text-blue-200" : "text-zinc-200 hover:bg-zinc-800"}`}
+                            >
+                              <span>{option.label}</span>
+                              {sortBy === option.value ? <Check size={12} /> : null}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
 
-                    <div className="relative">
-                      <select
-                        value={sortDirection}
-                        onChange={(event) => setSortDirection(event.target.value)}
-                        className="appearance-none rounded-xl border border-zinc-700/70 bg-zinc-900/45 py-1 pl-2 pr-7 text-xs text-zinc-100 backdrop-blur-md transition hover:border-zinc-500 hover:bg-zinc-900/65 focus:outline-none focus:border-zinc-500"
+                    <div className="relative z-30">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenSortMenu((current) =>
+                            current === "sortDirection"
+                              ? null
+                              : "sortDirection",
+                          )
+                        }
+                        className="flex items-center gap-1 rounded-xl border border-zinc-700/70 bg-zinc-900/45 py-1 pl-2 pr-2 text-xs text-zinc-100 backdrop-blur-md transition hover:border-zinc-500 hover:bg-zinc-900/65"
                       >
-                        <option value="asc" className="bg-zinc-900 text-zinc-100">
-                          Ascending
-                        </option>
-                        <option value="desc" className="bg-zinc-900 text-zinc-100">
-                          Descending
-                        </option>
-                      </select>
-                      <ChevronDown
-                        size={12}
-                        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400"
-                      />
+                        <span>{currentSortDirectionLabel}</span>
+                        <ChevronDown
+                          size={12}
+                          className={`text-zinc-400 transition-transform ${openSortMenu === "sortDirection" ? "rotate-180" : ""}`}
+                        />
+                      </button>
+
+                      {openSortMenu === "sortDirection" ? (
+                        <div className="absolute left-0 top-[calc(100%+6px)] min-w-[10rem] rounded-xl border border-zinc-700 bg-zinc-950/95 p-1.5 shadow-xl backdrop-blur-md">
+                          {SORT_DIRECTION_OPTIONS.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                setSortDirection(option.value);
+                                setOpenSortMenu(null);
+                              }}
+                              className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition ${sortDirection === option.value ? "bg-blue-500/20 text-blue-200" : "text-zinc-200 hover:bg-zinc-800"}`}
+                            >
+                              <span>{option.label}</span>
+                              {sortDirection === option.value ? (
+                                <Check size={12} />
+                              ) : null}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
