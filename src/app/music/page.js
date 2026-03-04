@@ -1412,7 +1412,7 @@ export default function MusicPage() {
           />
         ) : null}
 
-        <div className="w-full md:max-w-[17rem]">
+        <div className="w-full md:max-w-[17.5rem]">
           <div className="relative z-50">
             <button
               type="button"
