@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   Bell,
+  Check,
   CheckCircle2,
   ChevronDown,
   Save,
@@ -811,40 +812,29 @@ function RoleSelect({ id, label, value, roles, onChange, disabled = false }) {
     ? formatRoleColor(selectedRole.role_color)
     : null;
 
+  const roleOptions = roles.map((role) => {
+    const displayName = formatRoleName(role.role_name);
+    const level = Number(role.permission_level || 0);
+    return {
+      value: role.role_id,
+      label: `@${displayName}`,
+      description: `Permission level ${level}`,
+      color: formatRoleColor(role.role_color),
+    };
+  });
+
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="mb-1 block text-xs uppercase tracking-wide text-zinc-400"
-      >
-        {label}
-      </label>
-      <select
+      <CustomSelect
         id={id}
+        label={label}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         disabled={disabled}
-        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-100 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
-        style={
-          selectedColor
-            ? {
-                borderColor: selectedColor,
-                boxShadow: `0 0 0 1px ${selectedColor}`,
-              }
-            : undefined
-        }
-      >
-        <option value="">None</option>
-        {roles.map((role) => {
-          const displayName = formatRoleName(role.role_name);
-          const level = Number(role.permission_level || 0);
-          return (
-            <option key={role.role_id} value={role.role_id}>
-              @{displayName} • lvl {level}
-            </option>
-          );
-        })}
-      </select>
+        emptyLabel="None"
+        options={roleOptions}
+        selectedBorderColor={selectedColor}
+      />
 
       {selectedRole ? (
         <div className="mt-2 flex items-center gap-2 text-xs text-zinc-300">
@@ -871,28 +861,202 @@ function ChannelSelect({
   disabled = false,
   emptyLabel = "None (clear setting)",
 }) {
+  const channelOptions = channels.map((channel) => ({
+    value: channel.channel_id,
+    label: `#${channel.channel_name}`,
+  }));
+
   return (
-    <div>
+    <CustomSelect
+      id={id}
+      label={label}
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      emptyLabel={emptyLabel}
+      options={channelOptions}
+    />
+  );
+}
+
+function CustomSelect({
+  id,
+  label,
+  value,
+  onChange,
+  disabled = false,
+  emptyLabel = "None",
+  options = [],
+  selectedBorderColor,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+  const selectedOption = options.find((option) => option.value === value);
+  const triggerId = `${id}-trigger`;
+  const listboxId = `${id}-listbox`;
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (disabled && isOpen) {
+      setIsOpen(false);
+    }
+  }, [disabled, isOpen]);
+
+  return (
+    <div ref={containerRef} className="relative">
       <label
-        htmlFor={id}
+        htmlFor={triggerId}
         className="mb-1 block text-xs uppercase tracking-wide text-zinc-400"
       >
         {label}
       </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+
+      <button
+        id={triggerId}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls={listboxId}
         disabled={disabled}
-        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-100 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
+        onClick={() => {
+          if (!disabled) {
+            setIsOpen((current) => !current);
+          }
+        }}
+        className={`w-full rounded-md border bg-zinc-900 px-2.5 py-2 text-left text-sm text-zinc-100 transition ${
+          disabled
+            ? "cursor-not-allowed border-zinc-700 opacity-60"
+            : "hover:border-zinc-500"
+        }`}
+        style={
+          selectedBorderColor
+            ? {
+                borderColor: selectedBorderColor,
+                boxShadow: `0 0 0 1px ${selectedBorderColor}`,
+              }
+            : undefined
+        }
       >
-        <option value="">{emptyLabel}</option>
-        {channels.map((channel) => (
-          <option key={channel.channel_id} value={channel.channel_id}>
-            #{channel.channel_name}
-          </option>
-        ))}
-      </select>
+        <span className="flex items-center justify-between gap-2">
+          <span className="min-w-0">
+            <span
+              className={`block truncate ${selectedOption ? "text-zinc-100" : "text-zinc-400"}`}
+            >
+              {selectedOption?.label || emptyLabel}
+            </span>
+            {selectedOption?.description ? (
+              <span className="block truncate text-[11px] text-zinc-400">
+                {selectedOption.description}
+              </span>
+            ) : null}
+          </span>
+
+          <ChevronDown
+            size={16}
+            className={`shrink-0 text-zinc-400 transition-transform ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
+        </span>
+      </button>
+
+      {isOpen ? (
+        <div
+          id={listboxId}
+          role="listbox"
+          className="app-scrollbar absolute left-0 right-0 top-[calc(100%+8px)] z-40 max-h-56 overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950 p-1.5 shadow-xl"
+        >
+          <OptionButton
+            isSelected={!value}
+            label={emptyLabel}
+            onClick={() => {
+              onChange("");
+              setIsOpen(false);
+            }}
+          />
+
+          {options.map((option) => (
+            <OptionButton
+              key={option.value}
+              isSelected={option.value === value}
+              label={option.label}
+              description={option.description}
+              color={option.color}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function OptionButton({
+  isSelected,
+  label,
+  description,
+  color,
+  onClick,
+}) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={isSelected}
+      onClick={onClick}
+      className={`mb-1 flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left transition last:mb-0 ${
+        isSelected
+          ? "border-blue-500/70 bg-blue-500/15 text-blue-200"
+          : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+      }`}
+    >
+      <span className="min-w-0">
+        <span className="flex items-center gap-2 truncate text-sm">
+          {color ? (
+            <span
+              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-zinc-500"
+              style={{ backgroundColor: color }}
+              aria-hidden
+            />
+          ) : null}
+          <span className="truncate">{label}</span>
+        </span>
+        {description ? (
+          <span className="block truncate text-[11px] text-zinc-400">
+            {description}
+          </span>
+        ) : null}
+      </span>
+
+      {isSelected ? <Check size={14} className="shrink-0" /> : null}
+    </button>
   );
 }
