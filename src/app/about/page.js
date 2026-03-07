@@ -134,8 +134,10 @@ export default function About() {
           came to be? I was following one Polish YouTuber and streamer called
           Eleven and he had his own bot (his son) called Sappy (big shoutout to
           him becouse without Sappy Eppy would not be called Eppy). I thought
-          that that name was amazing but I did not want to just copy it. Then we
-          thought about how Eppy was offline longer than it was working. He was
+          that that name was amazing but I did not want to just copy it. So the
+          first idea for naming my bot was Sappy, but it was to similar to Gappy
+          and i did not liked that name. Then came the idea when we thought
+          about how Eppy was offline longer than it was working. He was
           sleepy... really sleepy... and at that moment something clicked in my
           head, you know, sleepy, sleppy, Eppy? Like when you yawn and make that
           sound YYYYAAA. And you are Eppying. And that is how Eppy got its name.
