@@ -135,13 +135,14 @@ export default function About() {
           Eleven and he had his own bot (his son) called Sappy (big shoutout to
           him becouse without Sappy Eppy would not be called Eppy). I thought
           that that name was amazing but I did not want to just copy it. So the
-          first idea for naming my bot was Sappy, but it was to similar to Gappy
-          and i did not liked that name. Then came the idea when we thought
-          about how Eppy was offline longer than it was working. He was
-          sleepy... really sleepy... and at that moment something clicked in my
-          head, you know, sleepy, sleppy, Eppy? Like when you yawn and make that
-          sound YYYYAAA. And you are Eppying. And that is how Eppy got its name.
-          Yeah, I know, really heart-breaking story XD
+          first idea for naming my bot was Gappy, but it was to similar to Sappy
+          and i did not liked that name, it was reminding me of cat from The
+          binding of Issac. Then came the idea when we thought about how Eppy
+          was offline longer than it was working. He was sleepy... really
+          sleepy... and at that moment something clicked in my head, you know,
+          sleepy, sleppy, Eppy? Like when you yawn and make that sound YYYYAAA.
+          And you are Eppying. And that is how Eppy got its name. Yeah, I know,
+          really heart-breaking story XD
         </p>
         <p className="text-zinc-300 mt-3 max-w-3xl leading-relaxed">
           I really appreciate if you read this whole thing, and I hope you will
