@@ -951,7 +951,7 @@ function CustomSelect({
         className={`w-full rounded-md border bg-zinc-900 px-2.5 py-2 text-left text-sm text-zinc-100 transition ${
           disabled
             ? "cursor-not-allowed border-zinc-700 opacity-60"
-            : "hover:border-zinc-500"
+            : "hover:border-zinc-500 hover:bg-zinc-800/80"
         }`}
         style={
           selectedBorderColor
@@ -1019,13 +1019,7 @@ function CustomSelect({
   );
 }
 
-function OptionButton({
-  isSelected,
-  label,
-  description,
-  color,
-  onClick,
-}) {
+function OptionButton({ isSelected, label, description, color, onClick }) {
   return (
     <button
       type="button"
@@ -1034,7 +1028,7 @@ function OptionButton({
       onClick={onClick}
       className={`mb-1 flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left transition last:mb-0 ${
         isSelected
-          ? "border-blue-500/70 bg-blue-500/15 text-blue-200"
+          ? "border-blue-500/70 bg-blue-500/15 text-blue-200 hover:bg-blue-500/25"
           : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
       }`}
     >
