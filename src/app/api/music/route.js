@@ -18,6 +18,7 @@ const ALLOWED_ACTIONS = new Set([
   "set_shuffle",
   "set_loop",
   "enqueue_priority",
+  "enqueue_artist",
   "enqueue_playlist",
   "enqueue_playlists",
   "jump_to_queue_track",

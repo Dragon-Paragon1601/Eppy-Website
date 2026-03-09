@@ -84,6 +84,7 @@ export default function MusicPage() {
   const [browseTitle, setBrowseTitle] = useState("Home");
   const [browseView, setBrowseView] = useState("home");
   const [selectedPlaylistName, setSelectedPlaylistName] = useState("");
+  const [selectedArtistName, setSelectedArtistName] = useState("");
   const [selectedPlaylistKeys, setSelectedPlaylistKeys] = useState([]);
   const [selectedTrackKeys, setSelectedTrackKeys] = useState([]);
   const [isAddToPlaylistsOpen, setIsAddToPlaylistsOpen] = useState(false);
@@ -441,6 +442,51 @@ export default function MusicPage() {
         track.title.toLowerCase().includes(query) ||
         track.artist.toLowerCase().includes(query),
     );
+  }, [searchValue, sortedLibraryTracks]);
+
+  const artistSearchProfiles = useMemo(() => {
+    const query = searchValue.trim().toLowerCase();
+    if (!query.length) {
+      return [];
+    }
+
+    const byArtist = new Map();
+    for (const track of sortedLibraryTracks) {
+      const artist = String(track.artist || "").trim();
+      if (!artist) continue;
+
+      const artistKey = artist.toLowerCase();
+      if (!artistKey.includes(query)) continue;
+
+      if (!byArtist.has(artistKey)) {
+        byArtist.set(artistKey, {
+          id: artistKey,
+          artist,
+          tracks: 0,
+        });
+      }
+
+      byArtist.get(artistKey).tracks += 1;
+    }
+
+    return [...byArtist.values()].sort((left, right) => {
+      const leftKey = left.artist.toLowerCase();
+      const rightKey = right.artist.toLowerCase();
+
+      const leftExact = leftKey === query ? 0 : 1;
+      const rightExact = rightKey === query ? 0 : 1;
+      if (leftExact !== rightExact) {
+        return leftExact - rightExact;
+      }
+
+      const leftStarts = leftKey.startsWith(query) ? 0 : 1;
+      const rightStarts = rightKey.startsWith(query) ? 0 : 1;
+      if (leftStarts !== rightStarts) {
+        return leftStarts - rightStarts;
+      }
+
+      return left.artist.localeCompare(right.artist);
+    });
   }, [searchValue, sortedLibraryTracks]);
 
   const isSearchOpen = searchValue.trim().length > 0;
@@ -990,6 +1036,16 @@ export default function MusicPage() {
   };
 
   const visibleLibraryTracks = useMemo(() => {
+    if (browseView === "artist" && selectedArtistName) {
+      const artistQuery = selectedArtistName.trim().toLowerCase();
+      return sortedLibraryTracks.filter(
+        (track) =>
+          String(track.artist || "")
+            .trim()
+            .toLowerCase() === artistQuery,
+      );
+    }
+
     if (browseView !== "playlist" || !selectedPlaylistName) {
       return sortedLibraryTracks;
     }
@@ -1051,6 +1107,7 @@ export default function MusicPage() {
     browseView,
     sortBy,
     sortDirection,
+    selectedArtistName,
     selectedPlaylistName,
     selectedUserPlaylist,
     trackByKey,
@@ -1350,6 +1407,7 @@ export default function MusicPage() {
     setBrowseView("home");
     setBrowseTitle("Home");
     setSelectedPlaylistName("");
+    setSelectedArtistName("");
     setSelectedPlaylistKeys([]);
     setSelectedTrackKeys([]);
     setSearchValue("");
@@ -1373,10 +1431,30 @@ export default function MusicPage() {
   const handleSearchInput = (value) => {
     setSearchValue(value);
     if (value.trim().length > 0) {
+      setOpenSortMenu(null);
       setBrowseView("search");
       setBrowseTitle("Search results");
       setSelectedPlaylistName("");
+      setSelectedArtistName("");
     }
+  };
+
+  const handleArtistProfileOpen = (artistName) => {
+    const safeArtistName = String(artistName || "").trim();
+    if (!safeArtistName.length) return;
+
+    setSelectedTrackKeys([]);
+    setSelectedPlaylistKeys([]);
+    setSelectedUserPlaylistId(null);
+    setSelectedPlaylistName("");
+    setSelectedArtistName(safeArtistName);
+    setBrowseView("artist");
+    setBrowseTitle(`Artist: ${safeArtistName}`);
+    setSearchValue("");
+
+    sendAction("enqueue_artist", {
+      artist_name: safeArtistName,
+    });
   };
 
   const triggerControlFlash = (controlKey) => {
@@ -1873,8 +1951,42 @@ export default function MusicPage() {
 
                   {isSearchOpen ? (
                     <div className="app-scrollbar absolute left-0 right-0 top-[calc(100%+8px)] z-40 max-h-72 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-950 p-2 shadow-xl">
-                      {searchResults.length ? (
+                      {artistSearchProfiles.length || searchResults.length ? (
                         <div className="space-y-2">
+                          {artistSearchProfiles.map((artistProfile) => (
+                            <div
+                              key={`artist-${artistProfile.id}`}
+                              className="flex items-center justify-between gap-2 rounded-md border border-blue-500/50 bg-blue-500/10 px-3 py-2 hover:bg-blue-500/15"
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleArtistProfileOpen(artistProfile.artist)
+                                }
+                                className="min-w-0 flex-1 text-left"
+                              >
+                                <p className="truncate text-sm text-blue-100">
+                                  {artistProfile.artist}
+                                </p>
+                                <p className="truncate text-xs text-blue-200/80">
+                                  Artist profile • {artistProfile.tracks} tracks
+                                </p>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleArtistProfileOpen(artistProfile.artist)
+                                }
+                                className="flex h-7 w-7 items-center justify-center rounded-full border border-blue-400/60 bg-zinc-900 text-blue-100 hover:text-blue-200"
+                                aria-label={`Play artist ${artistProfile.artist}`}
+                                title={`Play ${artistProfile.artist}`}
+                              >
+                                <Play size={13} />
+                              </button>
+                            </div>
+                          ))}
+
                           {searchResults.map((track) => (
                             <div
                               key={`search-${track.id}`}
@@ -1943,6 +2055,7 @@ export default function MusicPage() {
                     setBrowseView("library");
                     setBrowseTitle("All library tracks");
                     setSelectedPlaylistName("");
+                    setSelectedArtistName("");
                     setSelectedTrackKeys([]);
                     setSelectedPlaylistKeys([]);
                   }}
@@ -2024,7 +2137,7 @@ export default function MusicPage() {
               )}
             </div>
 
-            {browseView !== "home" ? (
+            {browseView !== "home" && !isSearchOpen ? (
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
                 {openSortMenu ? (
                   <button
