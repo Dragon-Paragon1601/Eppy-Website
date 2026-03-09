@@ -53,6 +53,13 @@ function durationToSeconds(duration) {
   return minutes * 60 + seconds;
 }
 
+function splitArtistNames(artistValue) {
+  return String(artistValue || "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 function getPlaylistOrderValue(playlist) {
   const parsed = Number(playlist?.playlist_order);
   if (!Number.isInteger(parsed) || parsed <= 0) return null;
@@ -452,21 +459,21 @@ export default function MusicPage() {
 
     const byArtist = new Map();
     for (const track of sortedLibraryTracks) {
-      const artist = String(track.artist || "").trim();
-      if (!artist) continue;
+      const trackArtists = splitArtistNames(track.artist);
+      for (const artist of trackArtists) {
+        const artistKey = artist.toLowerCase();
+        if (!artistKey.includes(query)) continue;
 
-      const artistKey = artist.toLowerCase();
-      if (!artistKey.includes(query)) continue;
+        if (!byArtist.has(artistKey)) {
+          byArtist.set(artistKey, {
+            id: artistKey,
+            artist,
+            tracks: 0,
+          });
+        }
 
-      if (!byArtist.has(artistKey)) {
-        byArtist.set(artistKey, {
-          id: artistKey,
-          artist,
-          tracks: 0,
-        });
+        byArtist.get(artistKey).tracks += 1;
       }
-
-      byArtist.get(artistKey).tracks += 1;
     }
 
     return [...byArtist.values()].sort((left, right) => {
@@ -1038,11 +1045,10 @@ export default function MusicPage() {
   const visibleLibraryTracks = useMemo(() => {
     if (browseView === "artist" && selectedArtistName) {
       const artistQuery = selectedArtistName.trim().toLowerCase();
-      return sortedLibraryTracks.filter(
-        (track) =>
-          String(track.artist || "")
-            .trim()
-            .toLowerCase() === artistQuery,
+      return sortedLibraryTracks.filter((track) =>
+        splitArtistNames(track.artist)
+          .map((artist) => artist.toLowerCase())
+          .includes(artistQuery),
       );
     }
 
