@@ -7,7 +7,6 @@ import {
   Check,
   ChevronDown,
   Library,
-  HeadsetOff,
   Pause,
   Pin,
   Play,
@@ -19,6 +18,7 @@ import {
   SkipForward,
   Sparkles,
   Trash2,
+  Unplug,
 } from "lucide-react";
 
 const ACCENT_CLASS = "text-blue-300";
@@ -2523,7 +2523,7 @@ export default function MusicPage() {
                         title="Stop playback and disconnect"
                         aria-label="Stop playback and disconnect bot"
                       >
-                        <HeadsetOff size={14} />
+                        <Unplug size={14} />
                       </button>
                     </div>
                   </div>
