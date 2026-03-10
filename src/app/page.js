@@ -4,12 +4,14 @@ const FEATURES = [
   {
     title: "Moderation",
     description:
-      "Skonfiguruj ban, kick, clear i tempbany w jednym panelu. Zero chaosu przy zarzadzaniu serwerem i pelna kontrola nad uprawnieniami.",
+      "Skonfiguruj ban, kick, clear i tempbany z jednego miejsca. Szybko, czytelnie i bez recznego grzebania w komendach.",
     details: [
-      "Automatyczne scenariusze reakcji na spam i naduzycia.",
-      "Role, limity i uprawnienia ustawiane bez recznego wpisywania komend.",
-      "Gotowe presety, ktore uruchomisz doslownie w 30 sekund.",
+      "Automatyczne reakcje na spam i flood.",
+      "Czytelne ustawienia rol i permisji.",
+      "Start od zera do gotowej konfiguracji w 30 sekund.",
     ],
+    mockTitle: "AutoMod Rules",
+    mockItems: ["Link spam", "Mention flood", "Raid protection"],
     cta: "Skonfiguruj moderacje",
     href: "/dashboard",
     badge: "Start w 30 sekund",
@@ -17,12 +19,14 @@ const FEATURES = [
   {
     title: "Music",
     description:
-      "Uruchom odtwarzanie, kolejke, playlisty i smartshuffle bez przeklikiwania sie przez dziesiatki opcji oraz recznego zarzadzania stanem.",
+      "Uruchom odtwarzanie, kolejke i playlisty w kilka klikniec, a Eppy ogarnie reszte za Ciebie.",
     details: [
-      "Szybki start od pierwszej piosenki do pelnej kolejki w kilka klikniec.",
-      "Zarzadzanie playlistami, priorytetami i wyszukiwaniem utworow z jednego miejsca.",
-      "Widok live stanu odtwarzania i kolejek zsynchronizowany z backendem.",
+      "Priorytetowe dodawanie utworow i szybkie wyszukiwanie.",
+      "Playlisty publiczne i prywatne pod jednym widokiem.",
+      "Live status odtwarzania zsynchronizowany z backendem.",
     ],
+    mockTitle: "Now Playing",
+    mockItems: ["Ado - Usseewa", "Queue: 18 tracks", "Smart Shuffle: ON"],
     cta: "Uruchom muzyke",
     href: "/music",
     badge: "Szybki setup",
@@ -30,12 +34,14 @@ const FEATURES = [
   {
     title: "Tools & Fun",
     description:
-      "Dodaj pety, roulette i praktyczne narzedzia, by serwer byl aktywny i przyjazny dla ludzi przez cala dobe.",
+      "Dodaj pety, roulette i utility, zeby serwer byl aktywny i przyjazny bez sztucznego pompowania aktywnosci.",
     details: [
-      "Moduly engagementowe, ktore podbijaja aktywnosc bez spamu.",
-      "Lekkie narzedzia utility pomagajace moderatorom i zwyklym uzytkownikom.",
-      "Konfiguracja krok po kroku bez potrzeby grzebania w dokumentacji.",
+      "Funkcje fun i engagement gotowe od razu po wlaczeniu.",
+      "Lekki zestaw narzedzi utility dla community.",
+      "Konfiguracja krok po kroku bez czytania dlugiej dokumentacji.",
     ],
+    mockTitle: "Community Pulse",
+    mockItems: ["Pet battles active", "Roulette events", "Daily quests"],
     cta: "Wlacz funkcje",
     href: "/dashboard",
     badge: "Gotowe preset'y",
@@ -71,6 +77,8 @@ const FOOTER_LINKS = [
   { label: "Status", href: "#" },
 ];
 
+const HERO_STATS = ["500+ communities", "99.9% uptime", "Setup in 30 seconds"];
+
 export default function Home() {
   const primaryButtonClass =
     "inline-flex min-h-11 items-center justify-center rounded-lg border px-4 py-2.5 text-sm font-semibold transition";
@@ -91,32 +99,76 @@ export default function Home() {
           aria-hidden="true"
         />
 
-        <div className="relative z-10 max-w-3xl">
-          <p className="inline-flex rounded-full border border-blue-400/40 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-200">
-            Discord Bot Control Center
-          </p>
-          <h1 className="mt-4 text-3xl md:text-5xl font-black leading-tight text-balance">
-            Eppy pomaga ogarnac moderacje, muzyke i konfiguracje serwera
-            szybciej niz kiedykolwiek.
-          </h1>
-          <p className="mt-4 text-zinc-300 text-base md:text-lg max-w-2xl">
-            Ustaw wszystko z jednego panelu, uruchom kluczowe funkcje w 30
-            sekund i trzymaj porzadek bez recznego grzebania w komendach.
-          </p>
+        <div className="relative z-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div>
+            <p className="inline-flex rounded-full border border-blue-400/40 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-200">
+              Discord Bot Control Center
+            </p>
+            <h1 className="mt-4 text-3xl md:text-5xl font-black leading-tight text-balance">
+              Zarzadzaj serwerem Discord jak duzi gracze, ale po swojemu.
+            </h1>
+            <p className="mt-4 text-zinc-300 text-base md:text-lg max-w-2xl">
+              Eppy laczy moderacje, muzyke i narzedzia community w jeden szybki
+              panel. Wchodzisz, konfigurujesz i jedziesz.
+            </p>
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link
-              href="/auth/signin"
-              className={`${discordButtonClass} rounded-xl px-5`}
-            >
-              Add to Discord
-            </Link>
-            <a
-              href="#features"
-              className={`${secondaryButtonClass} rounded-xl px-5`}
-            >
-              See Features
-            </a>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <Link
+                href="/auth/signin"
+                className={`${discordButtonClass} rounded-xl px-5`}
+              >
+                Add to Discord
+              </Link>
+              <a
+                href="#features"
+                className={`${secondaryButtonClass} rounded-xl px-5`}
+              >
+                See Features
+              </a>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {HERO_STATS.map((stat) => (
+                <span
+                  key={stat}
+                  className="rounded-full border border-zinc-600 bg-zinc-800/80 px-3 py-1 text-xs font-semibold text-zinc-200"
+                >
+                  {stat}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-700 bg-zinc-950/75 p-4 md:p-5">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/65 p-3">
+              <p className="text-xs uppercase tracking-wide text-zinc-400">
+                Server Overview
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2">
+                  <p className="text-xs text-zinc-400">Moderation</p>
+                  <p className="text-sm font-semibold text-zinc-100">Active</p>
+                </div>
+                <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2">
+                  <p className="text-xs text-zinc-400">Music Queue</p>
+                  <p className="text-sm font-semibold text-zinc-100">
+                    18 tracks
+                  </p>
+                </div>
+                <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2">
+                  <p className="text-xs text-zinc-400">Automod Rules</p>
+                  <p className="text-sm font-semibold text-zinc-100">
+                    12 enabled
+                  </p>
+                </div>
+                <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2">
+                  <p className="text-xs text-zinc-400">Bot Health</p>
+                  <p className="text-sm font-semibold text-emerald-300">
+                    Stable
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -138,7 +190,7 @@ export default function Home() {
               style={{ animationDelay: `${index * 110}ms` }}
             >
               <div
-                className={`grid gap-6 md:items-center md:grid-cols-2 ${
+                className={`grid gap-7 md:items-center md:grid-cols-2 ${
                   index % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""
                 }`}
               >
@@ -176,18 +228,35 @@ export default function Home() {
                     index % 2 === 1 ? "md:justify-start" : "md:justify-end"
                   }`}
                 >
-                  <Link
-                    href="/auth/signin"
-                    className={`${discordButtonClass} feature-action-btn w-full sm:min-w-44 sm:w-auto`}
-                  >
-                    Add to Discord
-                  </Link>
-                  <Link
-                    href={feature.href}
-                    className={`${secondaryButtonClass} feature-action-btn w-full sm:min-w-44 sm:w-auto`}
-                  >
-                    {feature.cta}
-                  </Link>
+                  <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-950/80 p-4">
+                    <p className="text-xs uppercase tracking-wide text-zinc-400">
+                      {feature.mockTitle}
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {feature.mockItems.map((item) => (
+                        <div
+                          key={item}
+                          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200"
+                        >
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex w-full flex-col gap-3 sm:flex-row">
+                      <Link
+                        href="/auth/signin"
+                        className={`${discordButtonClass} feature-action-btn w-full sm:min-w-44 sm:w-auto`}
+                      >
+                        Add to Discord
+                      </Link>
+                      <Link
+                        href={feature.href}
+                        className={`${secondaryButtonClass} feature-action-btn w-full sm:min-w-44 sm:w-auto`}
+                      >
+                        {feature.cta}
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               </div>
             </article>
