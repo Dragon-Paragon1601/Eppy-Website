@@ -207,9 +207,18 @@
 .feature-card {
   position: relative;
   overflow: hidden;
+  --focus-opacity: 1;
+  --focus-blur: 0px;
+  --focus-scale: 1;
+  --feature-hover-y: 0px;
+  opacity: var(--focus-opacity);
+  filter: blur(var(--focus-blur));
+  transform: translateY(var(--feature-hover-y)) scale(var(--focus-scale));
   animation: feature-card-enter 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transition:
     border-color 220ms ease,
+    opacity 220ms ease,
+    filter 220ms ease,
     transform 220ms ease,
     box-shadow 220ms ease;
 }
@@ -248,7 +257,7 @@
 }
 
 .feature-card:hover {
-  transform: translateY(-2px);
+  --feature-hover-y: -2px;
   box-shadow: 0 22px 48px rgba(2, 6, 23, 0.36);
 }
 
@@ -272,6 +281,19 @@
 .feature-action-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 24px rgba(2, 6, 23, 0.28);
+}
+
+.features-snap-container {
+  max-height: min(80vh, 940px);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y proximity;
+  scroll-padding-block: 18vh;
+  padding-right: 0.35rem;
+}
+
+.features-snap-container .feature-card {
+  scroll-snap-align: center;
 }
 
 @supports (animation-timeline: view()) {
@@ -303,5 +325,9 @@
     transform: none !important;
     filter: none !important;
     opacity: 1 !important;
+  }
+
+  .features-snap-container {
+    scroll-snap-type: none;
   }
 }

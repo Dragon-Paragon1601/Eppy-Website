@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 const FEATURES = [
   {
@@ -80,10 +83,60 @@ const FOOTER_LINKS = [
 const HERO_STATS = ["500+ communities", "99.9% uptime", "Setup in 30 seconds"];
 
 export default function Home() {
+  const featuresContainerRef = useRef(null);
+
   const primaryButtonClass =
     "inline-flex min-h-11 items-center justify-center rounded-lg border px-4 py-2.5 text-sm font-semibold transition";
   const discordButtonClass = `${primaryButtonClass} border-blue-400/50 bg-blue-600 text-white hover:bg-blue-500`;
   const secondaryButtonClass = `${primaryButtonClass} border-zinc-600 bg-zinc-800/80 text-zinc-100 hover:bg-zinc-700`;
+
+  useEffect(() => {
+    const container = featuresContainerRef.current;
+    if (!container) return;
+
+    const cards = Array.from(container.querySelectorAll(".feature-card"));
+    let rafId = null;
+
+    const updateFocusState = () => {
+      const containerRect = container.getBoundingClientRect();
+      const containerCenter = containerRect.top + containerRect.height / 2;
+      const maxDistance = containerRect.height * 0.55;
+
+      cards.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        const cardCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(cardCenter - containerCenter);
+        const ratio = Math.min(distance / maxDistance, 1);
+
+        const opacity = 1 - ratio * 0.48;
+        const blur = ratio * 3.6;
+        const scale = 1 - ratio * 0.03;
+
+        card.style.setProperty("--focus-opacity", opacity.toFixed(3));
+        card.style.setProperty("--focus-blur", `${blur.toFixed(2)}px`);
+        card.style.setProperty("--focus-scale", scale.toFixed(3));
+      });
+
+      rafId = null;
+    };
+
+    const requestUpdate = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(updateFocusState);
+    };
+
+    requestUpdate();
+    container.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+
+    return () => {
+      container.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("resize", requestUpdate);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, []);
 
   return (
     <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10 text-white app-scrollbar">
@@ -182,7 +235,10 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-5 md:gap-6">
+        <div
+          ref={featuresContainerRef}
+          className="features-snap-container app-scrollbar flex flex-col gap-5 md:gap-6"
+        >
           {FEATURES.map((feature, index) => (
             <article
               key={feature.title}
