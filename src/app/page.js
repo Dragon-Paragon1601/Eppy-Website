@@ -55,6 +55,11 @@ const TRUST_ITEMS = [
 ];
 
 export default function Home() {
+  const primaryButtonClass =
+    "inline-flex min-h-11 items-center justify-center rounded-lg border px-4 py-2.5 text-sm font-semibold transition";
+  const discordButtonClass = `${primaryButtonClass} border-blue-400/50 bg-blue-600 text-white hover:bg-blue-500`;
+  const secondaryButtonClass = `${primaryButtonClass} border-zinc-600 bg-zinc-800/80 text-zinc-100 hover:bg-zinc-700`;
+
   return (
     <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10 text-white app-scrollbar">
       <section className="relative overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900/70 p-7 md:p-10">
@@ -85,13 +90,13 @@ export default function Home() {
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link
               href="/auth/signin"
-              className="inline-flex items-center rounded-xl border border-blue-400/50 bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+              className={`${discordButtonClass} rounded-xl px-5`}
             >
               Add to Discord
             </Link>
             <a
               href="#features"
-              className="inline-flex items-center rounded-xl border border-zinc-600 bg-zinc-800/80 px-5 py-2.5 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-700"
+              className={`${secondaryButtonClass} rounded-xl px-5`}
             >
               See Features
             </a>
@@ -108,26 +113,44 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          {FEATURES.map((feature) => (
+        <div className="flex flex-col gap-5 md:gap-6">
+          {FEATURES.map((feature, index) => (
             <article
               key={feature.title}
-              className="rounded-2xl border border-zinc-700 bg-zinc-900/75 p-5 md:p-6 transition hover:border-blue-400/50 hover:-translate-y-0.5"
+              className="rounded-2xl border border-zinc-700 bg-zinc-900/75 p-6 md:p-8 transition hover:border-blue-400/50"
             >
-              <span className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">
-                {feature.badge}
-              </span>
-              <h3 className="mt-3 text-xl font-bold">{feature.title}</h3>
-              <p className="mt-2 text-sm text-zinc-300 leading-relaxed">
-                {feature.description}
-              </p>
-
-              <Link
-                href={feature.href}
-                className="mt-5 inline-flex items-center rounded-lg border border-zinc-600 bg-zinc-800/70 px-3.5 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-700"
+              <div
+                className={`flex flex-col gap-5 md:gap-6 ${
+                  index % 2 === 1
+                    ? "md:items-end md:text-right"
+                    : "md:items-start md:text-left"
+                }`}
               >
-                {feature.cta}
-              </Link>
+                <div className="max-w-3xl">
+                  <span className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">
+                    {feature.badge}
+                  </span>
+                  <h3 className="mt-3 text-2xl font-bold">{feature.title}</h3>
+                  <p className="mt-2 text-base text-zinc-300 leading-relaxed">
+                    {feature.description}
+                  </p>
+                </div>
+
+                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                  <Link
+                    href="/auth/signin"
+                    className={`${discordButtonClass} sm:min-w-44`}
+                  >
+                    Add to Discord
+                  </Link>
+                  <Link
+                    href={feature.href}
+                    className={`${secondaryButtonClass} sm:min-w-44`}
+                  >
+                    {feature.cta}
+                  </Link>
+                </div>
+              </div>
             </article>
           ))}
         </div>
