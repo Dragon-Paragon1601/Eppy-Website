@@ -1,94 +1,156 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const FEATURES = [
   {
+    key: "moderation",
     title: "Moderation",
     description:
-      "Skonfiguruj ban, kick, clear i tempbany z jednego miejsca. Szybko, czytelnie i bez recznego grzebania w komendach.",
+      "Configure ban, kick, clear, and temp bans from one place. Fast, clear, and without manually digging through commands.",
     details: [
-      "Automatyczne reakcje na spam i flood.",
-      "Czytelne ustawienia rol i permisji.",
-      "Start od zera do gotowej konfiguracji w 30 sekund.",
+      "Automatic reactions to spam and flood attempts.",
+      "Clear role and permission management.",
+      "Go from zero to a complete setup in 30 seconds.",
     ],
-    mockTitle: "AutoMod Rules",
-    mockItems: ["Link spam", "Mention flood", "Raid protection"],
-    cta: "Skonfiguruj moderacje",
+    cta: "Configure moderation",
     href: "/dashboard",
-    badge: "Start w 30 sekund",
+    badge: "Start in 30 seconds",
   },
   {
+    key: "music",
     title: "Music",
     description:
-      "Uruchom odtwarzanie, kolejke i playlisty w kilka klikniec, a Eppy ogarnie reszte za Ciebie.",
+      "Launch playback, queues, and playlists in a few clicks while Eppy handles the heavy lifting.",
     details: [
-      "Priorytetowe dodawanie utworow i szybkie wyszukiwanie.",
-      "Playlisty publiczne i prywatne pod jednym widokiem.",
-      "Live status odtwarzania zsynchronizowany z backendem.",
+      "Priority queueing and fast search.",
+      "Public and private playlists in one view.",
+      "Live playback status synced with the backend.",
     ],
-    mockTitle: "Now Playing",
-    mockItems: ["Ado - Usseewa", "Queue: 18 tracks", "Smart Shuffle: ON"],
-    cta: "Uruchom muzyke",
+    cta: "Open music controls",
     href: "/music",
-    badge: "Szybki setup",
+    badge: "Quick setup",
   },
   {
+    key: "tools",
     title: "Tools & Fun",
     description:
-      "Dodaj pety, roulette i utility, zeby serwer byl aktywny i przyjazny bez sztucznego pompowania aktywnosci.",
+      "Add pets, roulette, and utility tools to keep your server active and welcoming without forced engagement.",
     details: [
-      "Funkcje fun i engagement gotowe od razu po wlaczeniu.",
-      "Lekki zestaw narzedzi utility dla community.",
-      "Konfiguracja krok po kroku bez czytania dlugiej dokumentacji.",
+      "Fun and engagement modules ready right after enabling.",
+      "A lightweight utility toolkit for your community.",
+      "Step-by-step setup without digging through long docs.",
     ],
-    mockTitle: "Community Pulse",
-    mockItems: ["Pet battles active", "Roulette events", "Daily quests"],
-    cta: "Wlacz funkcje",
+    cta: "Enable features",
     href: "/dashboard",
-    badge: "Gotowe preset'y",
+    badge: "Ready presets",
   },
 ];
 
-const CHANGELOG = [
+const DEFAULT_CHANGELOG = [
   {
     version: "v2.4.0",
     date: "10 Mar 2026",
     items: [
-      "Nowy flow konfiguracji muzyki w panelu.",
-      "Lepsza obsluga kolejek i playlist.",
-      "Poprawki stabilnosci panelu dashboard.",
+      "New music configuration flow in the dashboard.",
+      "Improved queue and playlist handling.",
+      "Dashboard stability improvements.",
     ],
   },
   {
     version: "v2.3.5",
     date: "03 Mar 2026",
     items: [
-      "Usprawniony system tempbanow.",
-      "Szybsze ladowanie ustawien serwera.",
-      "Dodatkowe logi i poprawki bezpieczenstwa.",
+      "Enhanced temp-ban system.",
+      "Faster server settings loading.",
+      "Extra logging and security fixes.",
     ],
   },
 ];
 
 const FOOTER_LINKS = [
-  { label: "Privacy Policy", href: "#" },
-  { label: "Terms of Service", href: "#" },
-  { label: "Contact Us", href: "#" },
-  { label: "Support", href: "#" },
-  { label: "Status", href: "#" },
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Terms of Service", href: "/terms" },
+  { label: "Contact Us", href: "/contact" },
+  { label: "Support", href: "/support" },
+  { label: "Status", href: "/status" },
 ];
 
-const HERO_STATS = ["500+ communities", "99.9% uptime", "Setup in 30 seconds"];
+const DEFAULT_HOME_DATA = {
+  heroStats: ["500+ communities", "99.9% uptime", "Setup in 30 seconds"],
+  overviewCards: [
+    { label: "Moderation", value: "Active", tone: "neutral" },
+    { label: "Music Queue", value: "Ready", tone: "neutral" },
+    { label: "AutoMod Rules", value: "Enabled", tone: "neutral" },
+    { label: "Bot Health", value: "Stable", tone: "good" },
+  ],
+  featurePanels: {
+    moderation: {
+      title: "AutoMod Rules",
+      items: ["Link spam", "Mention flood", "Raid protection"],
+    },
+    music: {
+      title: "Now Playing",
+      items: ["Queue available", "Smart shuffle ready", "Live controls"],
+    },
+    tools: {
+      title: "Community Pulse",
+      items: ["Fun modules enabled", "Roulette events", "Daily quests"],
+    },
+  },
+  changelog: DEFAULT_CHANGELOG,
+};
 
 export default function Home() {
   const featuresContainerRef = useRef(null);
+  const [homeData, setHomeData] = useState(DEFAULT_HOME_DATA);
+  const botInviteUrl =
+    process.env.NEXT_PUBLIC_DISCORD_BOT_INVITE_URL || "/auth/signin";
 
   const primaryButtonClass =
     "inline-flex min-h-11 items-center justify-center rounded-lg border px-4 py-2.5 text-sm font-semibold transition";
   const discordButtonClass = `${primaryButtonClass} border-blue-400/50 bg-blue-600 text-white hover:bg-blue-500`;
   const secondaryButtonClass = `${primaryButtonClass} border-zinc-600 bg-zinc-800/80 text-zinc-100 hover:bg-zinc-700`;
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadHomeData = async () => {
+      try {
+        const response = await fetch("/api/home", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (isCancelled || !payload || typeof payload !== "object") return;
+
+        setHomeData((current) => ({
+          ...current,
+          ...payload,
+          heroStats: Array.isArray(payload.heroStats)
+            ? payload.heroStats
+            : current.heroStats,
+          overviewCards: Array.isArray(payload.overviewCards)
+            ? payload.overviewCards
+            : current.overviewCards,
+          changelog: Array.isArray(payload.changelog)
+            ? payload.changelog
+            : current.changelog,
+          featurePanels:
+            payload.featurePanels && typeof payload.featurePanels === "object"
+              ? payload.featurePanels
+              : current.featurePanels,
+        }));
+      } catch {
+        // Keep defaults when API is unavailable.
+      }
+    };
+
+    loadHomeData();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const container = featuresContainerRef.current;
@@ -107,9 +169,12 @@ export default function Home() {
         const distance = Math.abs(cardCenter - viewportCenter);
         const ratio = Math.min(distance / maxDistance, 1);
 
-        const opacity = 1 - ratio * 0.48;
-        const blur = ratio * 3.6;
-        const scale = 1 - ratio * 0.03;
+        // Keep center cards crisp and only softly dim/blur near edges.
+        const deadZone = 0.2;
+        const adjustedRatio = Math.max(0, (ratio - deadZone) / (1 - deadZone));
+        const opacity = 1 - adjustedRatio * 0.2;
+        const blur = adjustedRatio * 1.2;
+        const scale = 1 - adjustedRatio * 0.012;
 
         card.style.setProperty("--focus-opacity", opacity.toFixed(3));
         card.style.setProperty("--focus-blur", `${blur.toFixed(2)}px`);
@@ -137,6 +202,21 @@ export default function Home() {
     };
   }, []);
 
+  const heroStats = homeData.heroStats || DEFAULT_HOME_DATA.heroStats;
+  const overviewCards =
+    homeData.overviewCards || DEFAULT_HOME_DATA.overviewCards;
+  const changelog = homeData.changelog || DEFAULT_HOME_DATA.changelog;
+
+  const featurePanels = useMemo(() => {
+    const source = homeData.featurePanels || {};
+    return {
+      moderation:
+        source.moderation || DEFAULT_HOME_DATA.featurePanels.moderation,
+      music: source.music || DEFAULT_HOME_DATA.featurePanels.music,
+      tools: source.tools || DEFAULT_HOME_DATA.featurePanels.tools,
+    };
+  }, [homeData.featurePanels]);
+
   return (
     <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10 text-white app-scrollbar">
       <section className="relative overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900/70 p-7 md:p-10">
@@ -157,20 +237,22 @@ export default function Home() {
               Discord Bot Control Center
             </p>
             <h1 className="mt-4 text-3xl md:text-5xl font-black leading-tight text-balance">
-              Zarzadzaj serwerem Discord jak duzi gracze, ale po swojemu.
+              Manage your Discord server like a pro, your own way.
             </h1>
             <p className="mt-4 text-zinc-300 text-base md:text-lg max-w-2xl">
-              Eppy laczy moderacje, muzyke i narzedzia community w jeden szybki
-              panel. Wchodzisz, konfigurujesz i jedziesz.
+              Eppy combines moderation, music, and community tools into one fast
+              control panel. Join, configure, and go live.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center gap-3">
-              <Link
-                href="/auth/signin"
+              <a
+                href={botInviteUrl}
                 className={`${discordButtonClass} rounded-xl px-5`}
+                target="_blank"
+                rel="noreferrer"
               >
                 Add to Discord
-              </Link>
+              </a>
               <a
                 href="#features"
                 className={`${secondaryButtonClass} rounded-xl px-5`}
@@ -180,7 +262,7 @@ export default function Home() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {HERO_STATS.map((stat) => (
+              {heroStats.map((stat) => (
                 <span
                   key={stat}
                   className="rounded-full border border-zinc-600 bg-zinc-800/80 px-3 py-1 text-xs font-semibold text-zinc-200"
@@ -197,28 +279,23 @@ export default function Home() {
                 Server Overview
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2">
-                  <p className="text-xs text-zinc-400">Moderation</p>
-                  <p className="text-sm font-semibold text-zinc-100">Active</p>
-                </div>
-                <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2">
-                  <p className="text-xs text-zinc-400">Music Queue</p>
-                  <p className="text-sm font-semibold text-zinc-100">
-                    18 tracks
-                  </p>
-                </div>
-                <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2">
-                  <p className="text-xs text-zinc-400">Automod Rules</p>
-                  <p className="text-sm font-semibold text-zinc-100">
-                    12 enabled
-                  </p>
-                </div>
-                <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2">
-                  <p className="text-xs text-zinc-400">Bot Health</p>
-                  <p className="text-sm font-semibold text-emerald-300">
-                    Stable
-                  </p>
-                </div>
+                {overviewCards.map((card) => (
+                  <div
+                    key={card.label}
+                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2"
+                  >
+                    <p className="text-xs text-zinc-400">{card.label}</p>
+                    <p
+                      className={`text-sm font-semibold ${
+                        card.tone === "good"
+                          ? "text-emerald-300"
+                          : "text-zinc-100"
+                      }`}
+                    >
+                      {card.value}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -229,8 +306,7 @@ export default function Home() {
         <div className="mb-4 md:mb-5">
           <h2 className="text-2xl md:text-3xl font-bold">Features</h2>
           <p className="mt-2 text-zinc-300">
-            Wybierz modul, uruchom konfiguracje i wystartuj bez zbednej
-            technicznej zabawy.
+            Pick a module, run setup, and launch fast without technical hassle.
           </p>
         </div>
 
@@ -238,84 +314,91 @@ export default function Home() {
           ref={featuresContainerRef}
           className="flex flex-col gap-5 md:gap-6"
         >
-          {FEATURES.map((feature, index) => (
-            <article
-              key={feature.title}
-              className="feature-card group rounded-2xl border border-zinc-700 bg-zinc-900/75 p-8 md:p-12 min-h-[22rem] md:min-h-[24rem]"
-              style={{ animationDelay: `${index * 110}ms` }}
-            >
-              <div
-                className={`grid gap-7 md:items-center md:grid-cols-2 ${
-                  index % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""
-                }`}
-              >
-                <div
-                  className={`feature-scroll-text flex flex-col gap-3 ${
-                    index % 2 === 1
-                      ? "md:text-right md:items-end"
-                      : "md:text-left md:items-start"
-                  }`}
+          {FEATURES.map((feature, index) =>
+            (() => {
+              const panel = featurePanels[feature.key];
+              return (
+                <article
+                  key={feature.title}
+                  className="feature-card group rounded-2xl border border-zinc-700 bg-zinc-900/75 p-8 md:p-12 min-h-[22rem] md:min-h-[24rem]"
+                  style={{ animationDelay: `${index * 110}ms` }}
                 >
-                  <span className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">
-                    {feature.badge}
-                  </span>
-                  <h3 className="text-2xl md:text-3xl font-bold">
-                    {feature.title}
-                  </h3>
-                  <p className="text-base text-zinc-300 leading-relaxed max-w-2xl">
-                    {feature.description}
-                  </p>
-                  <ul className="mt-1 space-y-2 text-sm text-zinc-300/95 max-w-2xl">
-                    {feature.details.map((detail) => (
-                      <li key={detail} className="flex items-start gap-2">
-                        <span
-                          className="mt-1.5 h-1.5 w-1.5 rounded-full bg-cyan-300"
-                          aria-hidden="true"
-                        />
-                        <span>{detail}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div
-                  className={`feature-scroll-actions flex w-full flex-col gap-3 sm:flex-row ${
-                    index % 2 === 1 ? "md:justify-start" : "md:justify-end"
-                  }`}
-                >
-                  <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-950/80 p-4">
-                    <p className="text-xs uppercase tracking-wide text-zinc-400">
-                      {feature.mockTitle}
-                    </p>
-                    <div className="mt-3 space-y-2">
-                      {feature.mockItems.map((item) => (
-                        <div
-                          key={item}
-                          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200"
-                        >
-                          {item}
-                        </div>
-                      ))}
+                  <div
+                    className={`grid gap-7 md:items-center md:grid-cols-2 ${
+                      index % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""
+                    }`}
+                  >
+                    <div
+                      className={`feature-scroll-text flex flex-col gap-3 ${
+                        index % 2 === 1
+                          ? "md:text-right md:items-end"
+                          : "md:text-left md:items-start"
+                      }`}
+                    >
+                      <span className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">
+                        {feature.badge}
+                      </span>
+                      <h3 className="text-2xl md:text-3xl font-bold">
+                        {feature.title}
+                      </h3>
+                      <p className="text-base text-zinc-300 leading-relaxed max-w-2xl">
+                        {feature.description}
+                      </p>
+                      <ul className="mt-1 space-y-2 text-sm text-zinc-300/95 max-w-2xl">
+                        {feature.details.map((detail) => (
+                          <li key={detail} className="flex items-start gap-2">
+                            <span
+                              className="mt-1.5 h-1.5 w-1.5 rounded-full bg-cyan-300"
+                              aria-hidden="true"
+                            />
+                            <span>{detail}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <div className="mt-4 flex w-full flex-col gap-3 sm:flex-row">
-                      <Link
-                        href="/auth/signin"
-                        className={`${discordButtonClass} feature-action-btn w-full sm:min-w-44 sm:w-auto`}
-                      >
-                        Add to Discord
-                      </Link>
-                      <Link
-                        href={feature.href}
-                        className={`${secondaryButtonClass} feature-action-btn w-full sm:min-w-44 sm:w-auto`}
-                      >
-                        {feature.cta}
-                      </Link>
+
+                    <div
+                      className={`feature-scroll-actions flex w-full flex-col gap-3 sm:flex-row ${
+                        index % 2 === 1 ? "md:justify-start" : "md:justify-end"
+                      }`}
+                    >
+                      <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-950/80 p-4">
+                        <p className="text-xs uppercase tracking-wide text-zinc-400">
+                          {panel.title}
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          {panel.items.map((item) => (
+                            <div
+                              key={item}
+                              className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200"
+                            >
+                              {item}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-4 flex w-full flex-col gap-3 sm:flex-row">
+                          <a
+                            href={botInviteUrl}
+                            className={`${discordButtonClass} feature-action-btn w-full sm:min-w-44 sm:w-auto`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Add to Discord
+                          </a>
+                          <Link
+                            href={feature.href}
+                            className={`${secondaryButtonClass} feature-action-btn w-full sm:min-w-44 sm:w-auto`}
+                          >
+                            {feature.cta}
+                          </Link>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </article>
-          ))}
+                </article>
+              );
+            })(),
+          )}
         </div>
       </section>
 
@@ -323,12 +406,12 @@ export default function Home() {
         <div className="mb-4 md:mb-5">
           <h2 className="text-2xl md:text-3xl font-bold">Change Logs</h2>
           <p className="mt-2 text-zinc-300">
-            Najnowsze poprawki, nowosci i aktualizacje bota.
+            Latest fixes, improvements, and updates.
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {CHANGELOG.map((entry) => (
+          {changelog.map((entry) => (
             <article
               key={entry.version}
               className="rounded-2xl border border-zinc-700 bg-zinc-900/75 p-5 md:p-6"
@@ -365,7 +448,7 @@ export default function Home() {
               Quick links
             </p>
             <p className="mt-1 text-lg font-semibold">
-              Eppy - nowoczesny bot do codziennego zarzadzania serwerem.
+              Eppy - a modern bot for everyday server management.
             </p>
           </div>
 
