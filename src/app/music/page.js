@@ -1449,23 +1449,60 @@ export default function MusicPage() {
     }
   };
 
-  const handleArtistProfileOpen = (artistName) => {
-    const safeArtistName = String(artistName || "").trim();
-    if (!safeArtistName.length) return;
+  const handleArtistProfileOpen = useCallback(
+    (artistName) => {
+      const safeArtistName = String(artistName || "").trim();
+      if (!safeArtistName.length) return;
 
-    setSelectedTrackKeys([]);
-    setSelectedPlaylistKeys([]);
-    setSelectedUserPlaylistId(null);
-    setSelectedPlaylistName("");
-    setSelectedArtistName(safeArtistName);
-    setBrowseView("artist");
-    setBrowseTitle(`Artist: ${safeArtistName}`);
-    setSearchValue("");
+      setSelectedTrackKeys([]);
+      setSelectedPlaylistKeys([]);
+      setSelectedUserPlaylistId(null);
+      setSelectedPlaylistName("");
+      setSelectedArtistName(safeArtistName);
+      setBrowseView("artist");
+      setBrowseTitle(`Artist: ${safeArtistName}`);
+      setSearchValue("");
 
-    sendAction("enqueue_artist", {
-      artist_name: safeArtistName,
-    });
-  };
+      sendAction("enqueue_artist", {
+        artist_name: safeArtistName,
+      });
+    },
+    [sendAction],
+  );
+
+  const renderArtistLinks = useCallback(
+    (artistValue, options = {}) => {
+      const {
+        containerClass = "truncate text-xs text-zinc-400",
+        extraText = "",
+      } = options;
+      const artists = splitArtistNames(artistValue);
+
+      return (
+        <p className={containerClass}>
+          {artists.length
+            ? artists.map((artist, index) => (
+                <span key={`${artist}-${index}`}>
+                  {index > 0 ? ", " : ""}
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleArtistProfileOpen(artist);
+                    }}
+                    className="inline rounded-sm bg-transparent p-0 text-inherit no-underline underline-offset-2 hover:underline focus:outline-none"
+                  >
+                    {artist}
+                  </button>
+                </span>
+              ))
+            : null}
+          {extraText ? <span>{extraText}</span> : null}
+        </p>
+      );
+    },
+    [handleArtistProfileOpen],
+  );
 
   const triggerControlFlash = (controlKey) => {
     setActiveControlFlash(controlKey);
@@ -2302,9 +2339,7 @@ export default function MusicPage() {
                             <p className="truncate text-sm text-zinc-100">
                               {track.title}
                             </p>
-                            <p className="truncate text-xs text-zinc-400">
-                              {track.artist}
-                            </p>
+                            {renderArtistLinks(track.artist)}
                           </div>
                         </div>
 
@@ -2393,9 +2428,7 @@ export default function MusicPage() {
                         <Plus size={11} />
                       </button>
                     </div>
-                    <p className="truncate text-xs text-zinc-400">
-                      {musicState.now_playing_artist || ""}
-                    </p>
+                    {renderArtistLinks(musicState.now_playing_artist)}
                   </div>
 
                   <div className="flex flex-col items-end gap-2">
@@ -2564,9 +2597,9 @@ export default function MusicPage() {
                   <Plus size={11} />
                 </button>
               </div>
-              <p className="text-xs text-zinc-400">
-                {musicState.now_playing_artist || ""}
-              </p>
+              {renderArtistLinks(musicState.now_playing_artist, {
+                containerClass: "text-xs text-zinc-400",
+              })}
             </div>
 
             <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-2">
@@ -2645,12 +2678,14 @@ export default function MusicPage() {
                           <p className="truncate text-sm text-zinc-100">
                             {track.title}
                           </p>
-                          <p className="truncate text-[11px] text-zinc-400">
-                            {track.artist}
-                            {track.isPriority && queueTab === "queue"
-                              ? " • priority"
-                              : ""}
-                          </p>
+                          {renderArtistLinks(track.artist, {
+                            containerClass:
+                              "truncate text-[11px] text-zinc-400",
+                            extraText:
+                              track.isPriority && queueTab === "queue"
+                                ? " • priority"
+                                : "",
+                          })}
                         </div>
 
                         <div className="flex h-10 w-7 flex-col items-center justify-between">
