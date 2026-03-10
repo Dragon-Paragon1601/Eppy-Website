@@ -117,35 +117,46 @@ export default function Home() {
           {FEATURES.map((feature, index) => (
             <article
               key={feature.title}
-              className="rounded-2xl border border-zinc-700 bg-zinc-900/75 p-6 md:p-8 transition hover:border-blue-400/50"
+              className="feature-card group rounded-2xl border border-zinc-700 bg-zinc-900/75 p-6 md:p-8"
+              style={{ animationDelay: `${index * 110}ms` }}
             >
               <div
-                className={`flex flex-col gap-5 md:gap-6 ${
-                  index % 2 === 1
-                    ? "md:items-end md:text-right"
-                    : "md:items-start md:text-left"
+                className={`grid gap-6 md:items-center md:grid-cols-2 ${
+                  index % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""
                 }`}
               >
-                <div className="max-w-3xl">
+                <div
+                  className={`flex flex-col gap-3 ${
+                    index % 2 === 1
+                      ? "md:text-right md:items-end"
+                      : "md:text-left md:items-start"
+                  }`}
+                >
                   <span className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">
                     {feature.badge}
                   </span>
-                  <h3 className="mt-3 text-2xl font-bold">{feature.title}</h3>
-                  <p className="mt-2 text-base text-zinc-300 leading-relaxed">
+                  <h3 className="text-2xl md:text-3xl font-bold">
+                    {feature.title}
+                  </h3>
+                  <p className="text-base text-zinc-300 leading-relaxed max-w-2xl">
                     {feature.description}
                   </p>
                 </div>
 
-                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                <div
+                  className={`flex w-full flex-col gap-3 sm:flex-row ${
+                    index % 2 === 1 ? "md:justify-start" : "md:justify-end"
+                  }`}
+                >
                   <Link
                     href="/auth/signin"
-                    className={`${discordButtonClass} sm:min-w-44`}
+                    className={`${discordButtonClass} feature-action-btn w-full sm:min-w-44 sm:w-auto`}
                   >
                     Add to Discord
                   </Link>
                   <Link
                     href={feature.href}
-                    className={`${secondaryButtonClass} sm:min-w-44`}
+                    className={`${secondaryButtonClass} feature-action-btn w-full sm:min-w-44 sm:w-auto`}
                   >
                     {feature.cta}
                   </Link>
