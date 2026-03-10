@@ -98,14 +98,13 @@ export default function Home() {
     let rafId = null;
 
     const updateFocusState = () => {
-      const containerRect = container.getBoundingClientRect();
-      const containerCenter = containerRect.top + containerRect.height / 2;
-      const maxDistance = containerRect.height * 0.55;
+      const viewportCenter = window.innerHeight / 2;
+      const maxDistance = window.innerHeight * 0.55;
 
       cards.forEach((card) => {
         const rect = card.getBoundingClientRect();
         const cardCenter = rect.top + rect.height / 2;
-        const distance = Math.abs(cardCenter - containerCenter);
+        const distance = Math.abs(cardCenter - viewportCenter);
         const ratio = Math.min(distance / maxDistance, 1);
 
         const opacity = 1 - ratio * 0.48;
@@ -126,11 +125,11 @@ export default function Home() {
     };
 
     requestUpdate();
-    container.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("scroll", requestUpdate, { passive: true });
     window.addEventListener("resize", requestUpdate);
 
     return () => {
-      container.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("scroll", requestUpdate);
       window.removeEventListener("resize", requestUpdate);
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
@@ -237,7 +236,7 @@ export default function Home() {
 
         <div
           ref={featuresContainerRef}
-          className="features-snap-container app-scrollbar flex flex-col gap-5 md:gap-6"
+          className="flex flex-col gap-5 md:gap-6"
         >
           {FEATURES.map((feature, index) => (
             <article

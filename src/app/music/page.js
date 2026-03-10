@@ -7,6 +7,7 @@ import {
   Check,
   ChevronDown,
   Library,
+  HeadsetOff,
   Pause,
   Pin,
   Play,
@@ -411,6 +412,9 @@ export default function MusicPage() {
   const shuffleEnabled = shuffleMode !== "off";
   const smartShuffleEnabled = shuffleMode === "smart";
   const loopEnabled = musicState.is_loop_enabled === true;
+  const canDisconnect =
+    String(musicState.channel_label || "") !== "" &&
+    String(musicState.channel_label || "") !== "No channel";
 
   const sortedLibraryTracks = useMemo(() => {
     const tracksWithNumber = libraryTracks.map((track, index) => ({
@@ -2508,6 +2512,18 @@ export default function MusicPage() {
                         disabled={isSendingAction}
                       >
                         <Repeat size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sendAction("disconnect");
+                        }}
+                        disabled={isSendingAction || !canDisconnect}
+                        className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition hover:bg-zinc-800 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                        title="Stop playback and disconnect"
+                        aria-label="Stop playback and disconnect bot"
+                      >
+                        <HeadsetOff size={14} />
                       </button>
                     </div>
                   </div>

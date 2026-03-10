@@ -15,6 +15,7 @@ const ALLOWED_ACTIONS = new Set([
   "next",
   "previous",
   "start_playback",
+  "disconnect",
   "set_shuffle",
   "set_loop",
   "enqueue_priority",

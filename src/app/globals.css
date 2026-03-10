@@ -283,19 +283,6 @@
   box-shadow: 0 8px 24px rgba(2, 6, 23, 0.28);
 }
 
-.features-snap-container {
-  max-height: min(80vh, 940px);
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  scroll-snap-type: y proximity;
-  scroll-padding-block: 18vh;
-  padding-right: 0.35rem;
-}
-
-.features-snap-container .feature-card {
-  scroll-snap-align: center;
-}
-
 @supports (animation-timeline: view()) {
   .feature-scroll-text,
   .feature-scroll-actions {
@@ -325,9 +312,5 @@
     transform: none !important;
     filter: none !important;
     opacity: 1 !important;
-  }
-
-  .features-snap-container {
-    scroll-snap-type: none;
   }
 }
