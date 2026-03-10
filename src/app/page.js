@@ -4,7 +4,12 @@ const FEATURES = [
   {
     title: "Moderation",
     description:
-      "Skonfiguruj ban, kick, clear i tempbany w jednym panelu. Zero chaosu przy zarzadzaniu serwerem.",
+      "Skonfiguruj ban, kick, clear i tempbany w jednym panelu. Zero chaosu przy zarzadzaniu serwerem i pelna kontrola nad uprawnieniami.",
+    details: [
+      "Automatyczne scenariusze reakcji na spam i naduzycia.",
+      "Role, limity i uprawnienia ustawiane bez recznego wpisywania komend.",
+      "Gotowe presety, ktore uruchomisz doslownie w 30 sekund.",
+    ],
     cta: "Skonfiguruj moderacje",
     href: "/dashboard",
     badge: "Start w 30 sekund",
@@ -12,7 +17,12 @@ const FEATURES = [
   {
     title: "Music",
     description:
-      "Uruchom odtwarzanie, kolejke, playlisty i smartshuffle bez przeklikiwania sie przez dziesiatki opcji.",
+      "Uruchom odtwarzanie, kolejke, playlisty i smartshuffle bez przeklikiwania sie przez dziesiatki opcji oraz recznego zarzadzania stanem.",
+    details: [
+      "Szybki start od pierwszej piosenki do pelnej kolejki w kilka klikniec.",
+      "Zarzadzanie playlistami, priorytetami i wyszukiwaniem utworow z jednego miejsca.",
+      "Widok live stanu odtwarzania i kolejek zsynchronizowany z backendem.",
+    ],
     cta: "Uruchom muzyke",
     href: "/music",
     badge: "Szybki setup",
@@ -20,7 +30,12 @@ const FEATURES = [
   {
     title: "Tools & Fun",
     description:
-      "Dodaj pety, roulette i praktyczne narzedzia, by serwer byl aktywny i przyjazny dla ludzi.",
+      "Dodaj pety, roulette i praktyczne narzedzia, by serwer byl aktywny i przyjazny dla ludzi przez cala dobe.",
+    details: [
+      "Moduly engagementowe, ktore podbijaja aktywnosc bez spamu.",
+      "Lekkie narzedzia utility pomagajace moderatorom i zwyklym uzytkownikom.",
+      "Konfiguracja krok po kroku bez potrzeby grzebania w dokumentacji.",
+    ],
     cta: "Wlacz funkcje",
     href: "/dashboard",
     badge: "Gotowe preset'y",
@@ -48,10 +63,12 @@ const CHANGELOG = [
   },
 ];
 
-const TRUST_ITEMS = [
-  "99.9% uptime",
-  "Bezpieczne logowanie Discord OAuth2",
-  "Aktywne wsparcie i aktualizacje",
+const FOOTER_LINKS = [
+  { label: "Privacy Policy", href: "#" },
+  { label: "Terms of Service", href: "#" },
+  { label: "Contact Us", href: "#" },
+  { label: "Support", href: "#" },
+  { label: "Status", href: "#" },
 ];
 
 export default function Home() {
@@ -117,7 +134,7 @@ export default function Home() {
           {FEATURES.map((feature, index) => (
             <article
               key={feature.title}
-              className="feature-card group rounded-2xl border border-zinc-700 bg-zinc-900/75 p-6 md:p-8"
+              className="feature-card group rounded-2xl border border-zinc-700 bg-zinc-900/75 p-8 md:p-12 min-h-[22rem] md:min-h-[24rem]"
               style={{ animationDelay: `${index * 110}ms` }}
             >
               <div
@@ -126,7 +143,7 @@ export default function Home() {
                 }`}
               >
                 <div
-                  className={`flex flex-col gap-3 ${
+                  className={`feature-scroll-text flex flex-col gap-3 ${
                     index % 2 === 1
                       ? "md:text-right md:items-end"
                       : "md:text-left md:items-start"
@@ -141,10 +158,21 @@ export default function Home() {
                   <p className="text-base text-zinc-300 leading-relaxed max-w-2xl">
                     {feature.description}
                   </p>
+                  <ul className="mt-1 space-y-2 text-sm text-zinc-300/95 max-w-2xl">
+                    {feature.details.map((detail) => (
+                      <li key={detail} className="flex items-start gap-2">
+                        <span
+                          className="mt-1.5 h-1.5 w-1.5 rounded-full bg-cyan-300"
+                          aria-hidden="true"
+                        />
+                        <span>{detail}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
                 <div
-                  className={`flex w-full flex-col gap-3 sm:flex-row ${
+                  className={`feature-scroll-actions flex w-full flex-col gap-3 sm:flex-row ${
                     index % 2 === 1 ? "md:justify-start" : "md:justify-end"
                   }`}
                 >
@@ -210,7 +238,7 @@ export default function Home() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-wider text-zinc-400">
-              Trusted by growing communities
+              Quick links
             </p>
             <p className="mt-1 text-lg font-semibold">
               Eppy - nowoczesny bot do codziennego zarzadzania serwerem.
@@ -218,13 +246,14 @@ export default function Home() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {TRUST_ITEMS.map((item) => (
-              <span
-                key={item}
-                className="rounded-full border border-zinc-600 bg-zinc-800/80 px-3 py-1 text-xs font-semibold text-zinc-200"
+            {FOOTER_LINKS.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="rounded-full border border-zinc-600 bg-zinc-800/80 px-3 py-1 text-xs font-semibold text-zinc-200 transition hover:border-blue-400/50 hover:text-blue-200"
               >
-                {item}
-              </span>
+                {item.label}
+              </Link>
             ))}
           </div>
         </div>
