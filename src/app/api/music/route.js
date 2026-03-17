@@ -37,6 +37,24 @@ const ALLOWED_ACTIONS = new Set([
   "reorder_user_playlist",
 ]);
 
+const ACTIONS_REQUIRING_SHARED_VOICE_CHANNEL = new Set([
+  "toggle_pause",
+  "next",
+  "previous",
+  "disconnect",
+  "set_shuffle",
+  "set_loop",
+  "enqueue_priority",
+  "enqueue_artist",
+  "enqueue_playlist",
+  "enqueue_playlists",
+  "jump_to_queue_track",
+  "reorder_queue_track",
+  "remove_priority",
+  "remove_queue",
+  "clear_queue",
+]);
+
 const TABLE_DEFINITIONS = [
   {
     table: "music_command_queue",
@@ -125,6 +143,14 @@ function toPositiveInt(value) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) return null;
   return parsed;
+}
+
+function normalizeChannelLabel(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^#/, "")
+    .trim()
+    .toLowerCase();
 }
 
 async function ensureMusicTables() {
@@ -396,6 +422,47 @@ export async function POST(request) {
   const canAccess = await canAccessGuild(session.user.id, guildId);
   if (!canAccess) {
     return jsonResponse({ error: "No access to this guild" }, 403);
+  }
+
+  if (ACTIONS_REQUIRING_SHARED_VOICE_CHANNEL.has(action)) {
+    const [stateRows] = await promisePool.query(
+      "SELECT playback_state, channel_label FROM guild_music_state WHERE guild_id = ? LIMIT 1",
+      [guildId],
+    );
+
+    const playbackState = String(stateRows?.[0]?.playback_state || "idle");
+    if (playbackState === "playing" || playbackState === "paused") {
+      const [voiceRows] = await promisePool.query(
+        "SELECT channel_id, channel_name FROM guild_user_voice_states WHERE guild_id = ? AND user_id = ? LIMIT 1",
+        [guildId, session.user.id],
+      );
+
+      const userVoice = voiceRows?.[0] || null;
+      const userChannelName = normalizeChannelLabel(userVoice?.channel_name);
+      const botChannelName = normalizeChannelLabel(
+        stateRows?.[0]?.channel_label,
+      );
+
+      if (!userVoice?.channel_id || !userChannelName) {
+        return jsonResponse(
+          {
+            error:
+              "Musisz być na tym samym kanale głosowym co bot, aby sterować odtwarzaniem.",
+          },
+          403,
+        );
+      }
+
+      if (!botChannelName || userChannelName !== botChannelName) {
+        return jsonResponse(
+          {
+            error:
+              "Musisz być na tym samym kanale głosowym co bot, aby sterować odtwarzaniem.",
+          },
+          403,
+        );
+      }
+    }
   }
 
   const payload = {};

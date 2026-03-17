@@ -34,6 +34,32 @@ const SORT_DIRECTION_OPTIONS = [
   { value: "desc", label: "Descending" },
 ];
 
+const SAME_VOICE_CHANNEL_REQUIRED_ACTIONS = new Set([
+  "toggle_pause",
+  "next",
+  "previous",
+  "disconnect",
+  "set_shuffle",
+  "set_loop",
+  "enqueue_priority",
+  "enqueue_artist",
+  "enqueue_playlist",
+  "enqueue_playlists",
+  "jump_to_queue_track",
+  "reorder_queue_track",
+  "remove_priority",
+  "remove_queue",
+  "clear_queue",
+]);
+
+function normalizeChannelName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^#/, "")
+    .trim()
+    .toLowerCase();
+}
+
 const EMPTY_MUSIC_STATE = {
   playback_state: "idle",
   channel_label: "No channel",
@@ -375,7 +401,32 @@ export default function MusicPage() {
       setIsSendingAction(true);
       try {
         for (const item of actions) {
-          await fetch("/api/music", {
+          const playbackState = String(musicState.playback_state || "idle");
+          const actionNeedsSharedChannel =
+            SAME_VOICE_CHANNEL_REQUIRED_ACTIONS.has(item.action);
+          const playbackActive =
+            playbackState === "playing" || playbackState === "paused";
+
+          if (actionNeedsSharedChannel && playbackActive) {
+            const userChannel = normalizeChannelName(
+              userVoiceState?.channel_name,
+            );
+            const botChannel = normalizeChannelName(musicState.channel_label);
+
+            if (
+              !userVoiceState?.channel_id ||
+              !userChannel ||
+              !botChannel ||
+              userChannel !== botChannel
+            ) {
+              window.alert(
+                "Musisz być na tym samym kanale głosowym co bot, aby sterować odtwarzaniem.",
+              );
+              break;
+            }
+          }
+
+          const response = await fetch("/api/music", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -386,6 +437,21 @@ export default function MusicPage() {
               ...(item.payload || {}),
             }),
           });
+
+          if (!response.ok) {
+            let message = "Nie udało się wykonać akcji muzycznej.";
+            try {
+              const payload = await response.json();
+              if (payload?.error) {
+                message = String(payload.error);
+              }
+            } catch {
+              // Ignore parse errors and keep fallback message.
+            }
+
+            window.alert(message);
+            break;
+          }
         }
       } finally {
         setIsSendingAction(false);
@@ -393,7 +459,15 @@ export default function MusicPage() {
 
       await fetchMusicState(selectedGuildId);
     },
-    [fetchMusicState, isSendingAction, selectedGuildId],
+    [
+      fetchMusicState,
+      isSendingAction,
+      musicState.channel_label,
+      musicState.playback_state,
+      selectedGuildId,
+      userVoiceState?.channel_id,
+      userVoiceState?.channel_name,
+    ],
   );
 
   const sendAction = useCallback(
