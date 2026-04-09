@@ -1211,12 +1211,6 @@ export default function MusicPage() {
         },
       })),
     );
-    setBrowseView("track");
-    setBrowseTitle(
-      tracksToQueue.length > 1
-        ? `Priority queued: ${tracksToQueue.length} tracks`
-        : `Priority queued: ${track.title}`,
-    );
   };
 
   const handlePriorityQueueAddSingle = (track) => {
@@ -1231,8 +1225,6 @@ export default function MusicPage() {
         },
       },
     ]);
-    setBrowseView("track");
-    setBrowseTitle(`Priority queued: ${track.title}`);
   };
 
   const handleOpenAddToPlaylists = (track) => {
