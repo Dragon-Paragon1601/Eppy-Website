@@ -4,8 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
+
 import { Button } from "@/components/ui/button";
 import eppyLogo from "@/app/Eppy.png";
+import { useDevMode } from "@/components/DevModeContext";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
@@ -14,9 +16,10 @@ const NAV_ITEMS = [
   { href: "/music", label: "Music" },
 ];
 
-export default function Navbar() {
+
   const { data: session } = useSession();
   const pathname = usePathname();
+  const { devMode } = useDevMode();
 
   const handleSignIn = () => {
     signIn("discord", { callbackUrl: "/dashboard" });
@@ -38,6 +41,14 @@ export default function Navbar() {
           <span className="truncate text-xl font-bold text-white transition-colors group-hover:text-blue-300">
             Eppy
           </span>
+          {devMode && (
+            <span
+              title="Dev Mode aktywny"
+              className="ml-2 px-2 py-0.5 rounded-lg bg-gradient-to-r from-blue-700 to-purple-700 text-xs font-semibold text-white shadow border border-blue-400 animate-pulse"
+            >
+              DEV
+            </span>
+          )}
         </Link>
 
         <div className="hidden md:flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900/70 p-1">
