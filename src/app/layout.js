@@ -1,9 +1,8 @@
-
-import Navbar from "@/components/Navbar";
 import Providers from "./providers";
 import ClientRoot from "./ClientRoot";
 import "./globals.css";
 
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="relative min-h-screen text-white overflow-x-hidden">
@@ -15,5 +14,4 @@ import "./globals.css";
       </body>
     </html>
   );
-}
 }
