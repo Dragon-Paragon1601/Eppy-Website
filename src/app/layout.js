@@ -1,5 +1,5 @@
+import Navbar from "@/components/Navbar";
 import Providers from "./providers";
-import ClientRoot from "./ClientRoot";
 import "./globals.css";
 
 export default function RootLayout({ children }) {
@@ -8,8 +8,15 @@ export default function RootLayout({ children }) {
       <body className="relative min-h-screen text-white overflow-x-hidden">
         <div className="app-background" aria-hidden="true" />
         <div className="app-overlay" aria-hidden="true" />
+
         <Providers>
-          <ClientRoot>{children}</ClientRoot>
+          <Navbar />
+
+          <main className="relative z-10 px-4 md:px-6 pt-24 md:pt-28 pb-8">
+            <div className="mx-auto w-full max-w-6xl min-h-[calc(100vh-8rem)] rounded-2xl border border-zinc-700/70 bg-zinc-900/65 backdrop-blur-md shadow-2xl">
+              {children}
+            </div>
+          </main>
         </Providers>
       </body>
     </html>
