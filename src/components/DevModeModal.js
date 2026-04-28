@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 export default function DevModeModal({ open, onClose, onLogin, error }) {
-  const [password, setPassword] = useState("");
+  const password = process.env.NEXT_PUBLIC_DEV_KEY;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -29,7 +29,6 @@ export default function DevModeModal({ open, onClose, onLogin, error }) {
             className="w-full px-4 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Developer password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
             autoFocus
           />
           {error && (

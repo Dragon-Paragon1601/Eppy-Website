@@ -7,8 +7,6 @@ const DEV_USER_IDS = (process.env.NEXT_PUBLIC_DEV_USER_IDS || "")
   .map((id) => id.trim())
   .filter(Boolean);
 
-console.log("[DevMode] Loaded DEV_USER_IDS:", DEV_USER_IDS);
-
 const DevModeContext = createContext({
   devMode: false,
   setDevMode: () => {},
@@ -25,17 +23,9 @@ export function DevModeProvider({ children }) {
   const [isDevUser, setIsDevUser] = useState(false);
 
   useEffect(() => {
-    console.log("[DevMode] Session user ID:", session?.user?.id);
-    console.log(
-      "[DevMode] DEV_USER_IDS check:",
-      session?.user?.id ? DEV_USER_IDS.includes(session.user.id) : "no user id",
-    );
-
     if (session?.user?.id && DEV_USER_IDS.includes(session.user.id)) {
-      console.log("[DevMode] User is dev user!");
       setIsDevUser(true);
     } else {
-      console.log("[DevMode] User is NOT dev user");
       setIsDevUser(false);
       setDevMode(false);
     }
