@@ -1,9 +1,10 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { DEV_ID } from "@/env"; // Importuj ID dewelopera z pliku .env
 
 // Dodaj tutaj ID Discorda uprawnionych deweloperów
 const DEV_USER_IDS = [
-  "123456789012345678", // Przykładowy ID, zamień na prawdziwe
+  process.env.DEV_ID, // Przykładowy ID, zamień na prawdziwe
   // Dodaj kolejne ID jeśli potrzeba
 ];
 
