@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { Code2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function DevModeButton() {
   const { data: session } = useSession();
@@ -10,6 +10,7 @@ export default function DevModeButton() {
   const [password, setPassword] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [error, setError] = useState("");
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Pobierz Dev User IDs i Dev Key z .env
   const devUserIds = process.env.NEXT_PUBLIC_DEV_USER_IDS?.split(",") || [];
@@ -19,18 +20,26 @@ export default function DevModeButton() {
   const isDevUser =
     session?.user?.id && devUserIds.includes(session.user.id.toString());
 
+  // Przywróć stan z localStorage przy załadowaniu
+  useEffect(() => {
+    const savedUnlockedState = localStorage.getItem("devModeUnlocked");
+    if (savedUnlockedState === "true") {
+      setIsUnlocked(true);
+    }
+    setIsLoaded(true);
+  }, []);
+
   // Jeśli użytkownik nie jest dev user, nie pokazuj przycisku
-  if (!isDevUser) {
+  if (!isDevUser || !isLoaded) {
     return null;
   }
 
   const handleToggle = () => {
-    if (isOpen) {
-      setIsOpen(false);
-      setPassword("");
-      setError("");
-      setIsUnlocked(false);
+    // Jeśli już odblokowani, po prostu toggleuj panel
+    if (isUnlocked) {
+      setIsOpen(!isOpen);
     } else {
+      // Jeśli nie odblokowani, otwórz panel z formularzem
       setIsOpen(true);
     }
   };
@@ -40,10 +49,20 @@ export default function DevModeButton() {
     if (password === devKey) {
       setIsUnlocked(true);
       setError("");
+      // Zapisz stan w localStorage
+      localStorage.setItem("devModeUnlocked", "true");
     } else {
       setError("Błędne hasło");
       setPassword("");
     }
+  };
+
+  const handleLogout = () => {
+    setIsUnlocked(false);
+    setIsOpen(false);
+    setPassword("");
+    // Usuń ze localStorage
+    localStorage.removeItem("devModeUnlocked");
   };
 
   return (
@@ -51,8 +70,12 @@ export default function DevModeButton() {
       {/* Przycisk główny */}
       <button
         onClick={handleToggle}
-        className="fixed bottom-8 left-8 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 group"
-        title="Dev Mode"
+        className={`fixed bottom-8 left-8 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 group ${
+          isUnlocked
+            ? "bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+            : "bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+        }`}
+        title={isUnlocked ? "Dev Mode (Zalogowany)" : "Dev Mode"}
         aria-label="Dev Mode Button"
       >
         <Code2
@@ -134,13 +157,10 @@ export default function DevModeButton() {
               </div>
 
               <button
-                onClick={() => {
-                  setIsUnlocked(false);
-                  setPassword("");
-                }}
+                onClick={handleLogout}
                 className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors"
               >
-                Zablokuj
+                Wyloguj
               </button>
             </div>
           )}
