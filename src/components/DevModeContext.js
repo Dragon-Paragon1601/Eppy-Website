@@ -1,11 +1,11 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 
-// Dodaj tutaj ID Discorda uprawnionych deweloperów
-const DEV_USER_IDS = [
-  process.env.DEV_ID, // Przykładowy ID, zamień na prawdziwe
-  // Dodaj kolejne ID jeśli potrzeba
-];
+// Parsuj DEV_USER_IDS z .env (format: id1,id2,id3)
+const DEV_USER_IDS = (process.env.DEV_USER_IDS || "")
+  .split(",")
+  .map((id) => id.trim())
+  .filter(Boolean);
 
 const DevModeContext = createContext({
   devMode: false,
