@@ -1,4 +1,5 @@
 import Navbar from "@/components/Navbar";
+import DevModeButton from "@/components/DevModeButton";
 import Providers from "./providers";
 import "./globals.css";
 
@@ -11,6 +12,7 @@ export default function RootLayout({ children }) {
 
         <Providers>
           <Navbar />
+          <DevModeButton />
 
           <main className="relative z-10 px-4 md:px-6 pt-24 md:pt-28 pb-8">
             <div className="mx-auto w-full max-w-6xl min-h-[calc(100vh-8rem)] rounded-2xl border border-zinc-700/70 bg-zinc-900/65 backdrop-blur-md shadow-2xl">
