@@ -2,15 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
-
 import { Button } from "@/components/ui/button";
-import DevModeButton from "@/components/DevModeButton";
-import DevModeModal from "@/components/DevModeModal";
 import eppyLogo from "@/app/Eppy.png";
-import { useDevMode } from "@/components/DevModeContext";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
@@ -22,34 +17,9 @@ const NAV_ITEMS = [
 export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const { devMode, setDevMode, isDevUser } = useDevMode();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [error, setError] = useState("");
-
-  const DEV_PASSWORD = "eppydev2026";
 
   const handleSignIn = () => {
     signIn("discord", { callbackUrl: "/dashboard" });
-  };
-
-  const handleDevButtonClick = () => {
-    setModalOpen(true);
-    setError("");
-  };
-
-  const handleModalClose = () => {
-    setModalOpen(false);
-    setError("");
-  };
-
-  const handleDevLogin = (password) => {
-    if (password === DEV_PASSWORD) {
-      setDevMode(true);
-      setModalOpen(false);
-      setError("");
-    } else {
-      setError("Nieprawidłowe hasło.");
-    }
   };
 
   return (
@@ -68,14 +38,6 @@ export default function Navbar() {
           <span className="truncate text-xl font-bold text-white transition-colors group-hover:text-blue-300">
             Eppy
           </span>
-          {devMode && (
-            <span
-              title="Dev Mode aktywny"
-              className="ml-2 px-2 py-0.5 rounded-lg bg-gradient-to-r from-blue-700 to-purple-700 text-xs font-semibold text-white shadow border border-blue-400 animate-pulse"
-            >
-              DEV
-            </span>
-          )}
         </Link>
 
         <div className="hidden md:flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900/70 p-1">
@@ -165,17 +127,6 @@ export default function Navbar() {
           );
         })}
       </div>
-
-      <DevModeButton
-        onClick={handleDevButtonClick}
-        visible={isDevUser && !devMode}
-      />
-      <DevModeModal
-        open={modalOpen}
-        onClose={handleModalClose}
-        onLogin={handleDevLogin}
-        error={error}
-      />
     </nav>
   );
 }
