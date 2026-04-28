@@ -2,8 +2,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 
 // Parsuj DEV_USER_IDS z .env (format: id1,id2,id3)
-const DEV_USER_IDS = (process.env.DEV_USER_IDS || "")
-  .split(",")
+const DEV_USER_IDS = process.env.DEV_USER_IDS.split(",")
   .map((id) => id.trim())
   .filter(Boolean);
 
