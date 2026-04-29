@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useDevMode } from "@/components/DevModeContext";
+import PlaylistEditor from "@/components/PlaylistEditor";
 import {
   ArrowLeft,
   Check,
@@ -95,6 +97,7 @@ function getPlaylistOrderValue(playlist) {
 
 export default function MusicPage() {
   const { data: session } = useSession();
+  const { isUnlocked: isDevMode } = useDevMode();
   const [servers, setServers] = useState([]);
   const [selectedGuildId, setSelectedGuildId] = useState("");
   const [isServerPickerOpen, setIsServerPickerOpen] = useState(false);
@@ -1593,6 +1596,9 @@ export default function MusicPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 text-white">
+      {/* Playlist Editor - visible only in dev mode */}
+      {isDevMode && <PlaylistEditor />}
+
       <section className="relative z-50 mb-4 flex flex-col gap-3 md:flex-row md:items-start md:gap-4">
         {isServerPickerOpen ? (
           <button
