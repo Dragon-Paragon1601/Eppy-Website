@@ -21,14 +21,15 @@ export default function PlaylistEditor() {
   const [error, setError] = useState("");
 
   // Nie wyświetlaj jeśli nie jest w dev mode
-  if (!isUnlocked) {
-    return null;
-  }
 
   // Pobranie listy playlist
   useEffect(() => {
     fetchPlaylists();
   }, []);
+
+  if (!isUnlocked) {
+    return null;
+  }
 
   const fetchPlaylists = async () => {
     try {
