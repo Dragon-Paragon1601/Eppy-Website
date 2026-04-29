@@ -10,7 +10,6 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
-import { isLoaded } from "./DevModeContext";
 
 export default function PlaylistEditor() {
   const { isUnlocked } = useDevMode();
@@ -28,7 +27,7 @@ export default function PlaylistEditor() {
     fetchPlaylists();
   }, []);
 
-  if (!isLoaded) {
+  if (!isUnlocked) {
     return null;
   }
 
