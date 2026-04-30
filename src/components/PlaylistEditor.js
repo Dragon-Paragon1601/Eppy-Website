@@ -132,7 +132,7 @@ export default function PlaylistEditor() {
       {/* Przycisk Edit w lewym górnym rogu */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-7 right-7 z-40 w-12 h-12 rounded-full bg-gradient-to-br from-gray-400 to-orange-600 hover:from-orange-300 hover:to-orange-700 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 group z-index:10"
+        className="fixed top-7 right-7 z-40 w-12 h-12 rounded-full bg-gradient-to-br from-gray-400 to-orange-600 hover:from-gray-700 hover:to-orange-700 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 group z-index:10"
         title="Edytuj Playlisty"
         aria-label="Edit Playlists"
       >
@@ -146,11 +146,11 @@ export default function PlaylistEditor() {
       {/* Modal Editor */}
       {isOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-orange-500/50 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+          <div className="bg-slate-900 border border-blue-500/50 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
             {/* Header */}
-            <div className="sticky top-0 flex items-center justify-between bg-slate-800 border-b border-orange-500/30 p-6">
+            <div className="sticky top-0 flex items-center justify-between bg-slate-800 border-b border-blue-500/30 p-6">
               <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Settings size={28} className="text-orange-400" />
+                <Settings size={28} className="text-blue-400" />
                 Edytor Playlist
               </h2>
               <button
@@ -179,7 +179,7 @@ export default function PlaylistEditor() {
                     <button
                       key={playlist}
                       onClick={() => fetchPlaylistSongs(playlist)}
-                      className="p-4 bg-slate-800 hover:bg-slate-700 border border-gray-600 hover:border-orange-500 rounded-lg transition-all text-left"
+                      className="p-4 bg-slate-800 hover:bg-slate-700 border border-gray-600 hover:border-blue-500 rounded-lg transition-all text-left"
                     >
                       <div className="font-semibold text-white truncate">
                         {playlist}
@@ -215,7 +215,7 @@ export default function PlaylistEditor() {
                     {songs.map((song, index) => (
                       <div
                         key={index}
-                        className="bg-slate-800 border border-gray-600 hover:border-orange-500/50 rounded p-3 flex items-center justify-between group"
+                        className="bg-slate-800 border border-gray-600 hover:border-blue-500/50 rounded p-3 flex items-center justify-between group"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-white truncate">
@@ -266,7 +266,7 @@ export default function PlaylistEditor() {
                             className="p-1 hover:bg-red-500/20 rounded"
                             title="Usuń piosenkę"
                           >
-                            <Trash2 size={18} className="text-red-400" />
+                            <Trash2 size={18} className="text-blue-700" />
                           </button>
                         </div>
                       </div>
