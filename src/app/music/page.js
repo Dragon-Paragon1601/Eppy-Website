@@ -1596,9 +1596,6 @@ export default function MusicPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 text-white">
-      {/* Playlist Editor - visible only in dev mode */}
-      {isDevMode && <PlaylistEditor />}
-
       <section className="relative z-50 mb-4 flex flex-col gap-3 md:flex-row md:items-start md:gap-4">
         {isServerPickerOpen ? (
           <button
@@ -1678,6 +1675,9 @@ export default function MusicPage() {
             Live state with backend command bridge.
           </p>
         </div>
+
+        {/* Playlist Editor - visible only in dev mode */}
+        {isDevMode && <PlaylistEditor />}
       </section>
 
       <section className="rounded-2xl border border-zinc-700 bg-zinc-950/80 p-3 md:p-4">
