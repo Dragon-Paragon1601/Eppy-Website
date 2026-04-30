@@ -132,7 +132,7 @@ export default function PlaylistEditor() {
       {/* Przycisk Edit w lewym górnym rogu */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-7 right-7 z-40 w-12 h-12 rounded-full bg-gradient-to-br from-gray-400 to-orange-600 hover:from-gray-700 hover:to-orange-700 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 group z-index:10"
+        className="fixed top-7 right-7 z-40 w-12 h-12 rounded-full bg-gradient-to-br from-gray-400 to-gray-700 hover:from-blue-400 hover:to-blue-700 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 group z-index:10"
         title="Edytuj Playlisty"
         aria-label="Edit Playlists"
       >
