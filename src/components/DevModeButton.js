@@ -51,6 +51,10 @@ export default function DevModeButton() {
       setError("");
       // Zapisz stan w localStorage
       localStorage.setItem("devModeUnlocked", "true");
+      // Odśwież stronę aby pojawiły się elementy dev mode
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     } else {
       setError("Błędne hasło");
       setPassword("");
@@ -63,6 +67,10 @@ export default function DevModeButton() {
     setPassword("");
     // Usuń ze localStorage
     localStorage.removeItem("devModeUnlocked");
+    // Odśwież stronę aby znikły elementy dev mode
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   return (
