@@ -119,6 +119,8 @@ Minimal required set for login flow:
   - `identify`
   - `guilds`
   - `guilds.members.read`
+- Register this exact OAuth2 redirect URI in Discord Developer Portal:
+  - `<NEXTAUTH_URL>/api/auth/callback/discord`
 - Sign-in page route is configured as:
   - `/auth/signin`
 
@@ -126,7 +128,8 @@ Minimal required set for login flow:
 
 ## Troubleshooting
 
-- If Discord login fails, verify `NEXTAUTH_URL` and OAuth redirect URLs in Discord Developer Portal.
+- `NEXTAUTH_URL` must be the public website origin, including the correct scheme and port, without a path.
+- If Discord login fails, verify that Discord's registered redirect URI exactly matches `<NEXTAUTH_URL>/api/auth/callback/discord`.
 - If callback returns 400/401, verify `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, and `NEXTAUTH_SECRET`.
 - If pages load but API data is missing, check backend API route health and logs.
 - If PM2 process does not stay online, inspect logs:
